@@ -1,0 +1,10 @@
+.vscode/**
+.git/**
+.gitignore
+.vscodeignore
+tsconfig.json
+src/**
+dist/test/**
+jest.config.js
+package-lock.json
+node_modules/**

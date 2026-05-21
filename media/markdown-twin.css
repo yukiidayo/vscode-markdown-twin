@@ -1,0 +1,68 @@
+/* バイリンガルモード: 翻訳テキストブロック */
+.mt-translation {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.92em;
+  border-left: 3px solid var(--vscode-activityBarBadge-background);
+  padding: 4px 0 4px 12px;
+  margin-top: 4px;
+  margin-bottom: 12px;
+  opacity: 0.9;
+  font-style: italic;
+  font-family: var(--vscode-markdown-font-family, inherit);
+  
+  /* プレミアムフェードイン効果 */
+  animation: mtFadeIn 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+/* 翻訳待ち状態 (パルスアニメーションでローディング中を美しく演出) */
+.mt-translation.mt-pending {
+  opacity: 0.55;
+  font-style: normal;
+  border-left-color: var(--vscode-disabledForeground, #888888);
+  animation: mtPulse 1.5s ease-in-out infinite;
+}
+
+.mt-translation.mt-pending::before {
+  content: "⏳ ";
+  display: inline-block;
+  margin-right: 4px;
+}
+
+@keyframes mtFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 0.9;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mtPulse {
+  0% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}
+
+/* 一行翻訳専用ローディング状態 (プレミアムシマー効果) */
+.mt-translation-only.mt-pending {
+  opacity: 0.75;
+  background: linear-gradient(90deg, var(--vscode-editor-foreground, #ccc) 25%, var(--vscode-disabledForeground, #888) 50%, var(--vscode-editor-foreground, #ccc) 75%);
+  background-size: 200% 100%;
+  animation: mtShimmer 1.5s infinite linear;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+@keyframes mtShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}

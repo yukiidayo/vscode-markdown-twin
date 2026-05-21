@@ -1,0 +1,302 @@
+{
+  "name": "markdown-twin",
+  "displayName": "Markdown Twin",
+  "description": "Inline bilingual translation for Markdown preview",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "jest"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "markdownTwin.toggleTranslation",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.ja",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/ja.svg", "dark": "./media/flags/ja.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.en",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/en.svg", "dark": "./media/flags/en.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.ko",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/ko.svg", "dark": "./media/flags/ko.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.es",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/es.svg", "dark": "./media/flags/es.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.fr",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/fr.svg", "dark": "./media/flags/fr.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.de",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/de.svg", "dark": "./media/flags/de.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.it",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/it.svg", "dark": "./media/flags/it.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.pt",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/pt.svg", "dark": "./media/flags/pt.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.ru",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/ru.svg", "dark": "./media/flags/ru.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.vi",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/vi.svg", "dark": "./media/flags/vi.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.th",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/th.svg", "dark": "./media/flags/th.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.id",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/id.svg", "dark": "./media/flags/id.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.ar",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/ar.svg", "dark": "./media/flags/ar.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.hi",
+        "title": "Markdown Twin: Toggle Translation",
+        "icon": { "light": "./media/flags/hi.svg", "dark": "./media/flags/hi.svg" }
+      },
+      {
+        "command": "markdownTwin.toggleBilingual",
+        "title": "Markdown Twin: Toggle Bilingual Mode",
+        "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "markdownTwin.selectProvider",
+        "title": "Markdown Twin: Select Translation Provider"
+      },
+      {
+        "command": "markdownTwin.setApiKey",
+        "title": "Markdown Twin: Set API Key"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "markdownTwin.toggleTranslation",
+          "when": "resourceLangId == markdown && !markdownTwin.targetLang",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.ja",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'ja'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.en",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'en'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.ko",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'ko'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.es",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'es'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.fr",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'fr'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.de",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'de'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.it",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'it'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.pt",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'pt'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.ru",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'ru'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.vi",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'vi'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.th",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'th'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.id",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'id'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.ar",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'ar'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.hi",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'hi'",
+          "group": "navigation@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Markdown Twin",
+      "properties": {
+        "markdownTwin.provider": {
+          "type": "string",
+          "enum": [
+            "Google Cloud",
+            "Azure",
+            "DeepL",
+            "Papago"
+          ],
+          "default": "Azure",
+          "description": "Active translation provider.",
+          "order": 1
+        },
+        "markdownTwin.azureRegion": {
+          "type": "string",
+          "default": "global",
+          "markdownDescription": "Azure Region for Azure Translator. **[Only used when Active Provider is Azure Translator (microsoft)]** (e.g. global, japaneast, eastus, eastasia).",
+          "order": 2
+        },
+        "markdownTwin.sourceLanguage": {
+          "type": "string",
+          "enum": [
+            "Japanese (日本語)",
+            "Auto Detect (自動検出)",
+            "English (English)",
+            "Korean (한국어)",
+            "Spanish (Español)",
+            "French (Français)",
+            "German (Deutsch)",
+            "Italian (Italiano)",
+            "Portuguese (Português)",
+            "Russian (Русский)",
+            "Vietnamese (Tiếng Việt)",
+            "Thai (ไทย)",
+            "Indonesian (Bahasa Indonesia)",
+            "Arabic (العربية)",
+            "Hindi (हिन्दी)"
+          ],
+          "default": "Japanese (日本語)",
+          "description": "Source language for translation.",
+          "order": 3
+        },
+        "markdownTwin.targetLanguage": {
+          "type": "string",
+          "enum": [
+            "Korean (한국어)",
+            "English (English)",
+            "Japanese (日本語)",
+            "Spanish (Español)",
+            "French (Français)",
+            "German (Deutsch)",
+            "Italian (Italiano)",
+            "Portuguese (Português)",
+            "Russian (Русский)",
+            "Vietnamese (Tiếng Việt)",
+            "Thai (ไทย)",
+            "Indonesian (Bahasa Indonesia)",
+            "Arabic (العربية)",
+            "Hindi (हिन्दी)"
+          ],
+          "default": "Korean (한국어)",
+          "description": "Target language for translation.",
+          "order": 4
+        },
+        "markdownTwin.defaultMode": {
+          "type": "string",
+          "enum": [
+            "Translation Only",
+            "Bilingual"
+          ],
+          "default": "Translation Only",
+          "description": "Default display mode when translation is toggled on.",
+          "order": 5
+        },
+        "markdownTwin.batchSize": {
+          "type": "number",
+          "default": 10,
+          "description": "Number of blocks to translate per batch.",
+          "order": 6
+        },
+        "markdownTwin.debounceDelay": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Delay in seconds before re-translating after document changes (1–10s). Increase to reduce API requests when typing.",
+          "order": 7
+        }
+      }
+    },
+    "markdown.markdownItPlugins": true,
+    "markdown.previewStyles": [
+      "./media/markdown-twin.css"
+    ]
+  },
+  "dependencies": {
+    "markdown-it": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/markdown-it": "^14.0.0",
+    "@types/node": "^18.15.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "@types/jest": "^29.5.11"
+  }
+}

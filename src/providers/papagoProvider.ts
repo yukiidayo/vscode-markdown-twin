@@ -1,0 +1,55 @@
+import { ITranslationProvider } from './ITranslationProvider';
+
+export class PapagoProvider implements ITranslationProvider {
+  readonly id = 'papago';
+  readonly name = 'Papago (Naver)';
+  readonly requiresApiKey = true;
+
+  private clientId: string;
+  private clientSecret: string;
+
+  // APIキーは "clientId:clientSecret" の形式で1文字列として保存
+  constructor(apiKey: string) {
+    const [id, secret] = apiKey.split(':');
+    this.clientId = id ?? '';
+    this.clientSecret = secret ?? '';
+  }
+
+  async translate(texts: string[], sourceLang: string, targetLang: string): Promise<string[]> {
+    if (texts.length === 0) return [];
+
+    // Papagoは1リクエスト1テキストのみ対応 → Promise.all で並列実行（エラーはそのまま伝播）
+    return Promise.all(
+      texts.map(text => this.translateOne(text, sourceLang, targetLang))
+    );
+  }
+
+  private async translateOne(text: string, sourceLang: string, targetLang: string): Promise<string> {
+    const response = await fetch('https://naveropenapi.apigw.ntruss.com/nmt/v1/translation', {
+      method: 'POST',
+      headers: {
+        'X-NCP-APIGW-API-KEY-ID': this.clientId,
+        'X-NCP-APIGW-API-KEY': this.clientSecret,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        source: sourceLang === 'auto' ? 'ja' : sourceLang,
+        target: targetLang,
+        text,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorJson: any = await response.json().catch(() => ({}));
+      const errorMsg = errorJson?.error?.message ?? response.statusText;
+      throw new Error(`Papago translation failed (${response.status}): ${errorMsg}`);
+    }
+
+    const data = await response.json() as { message: { result: { translatedText: string } } };
+    const translatedText = data?.message?.result?.translatedText;
+    if (!translatedText) {
+      throw new Error('Papago: Invalid response structure');
+    }
+    return translatedText;
+  }
+}
