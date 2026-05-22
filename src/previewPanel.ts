@@ -36,10 +36,10 @@ export class PreviewPanel {
     const column = activeEditor.viewColumn;
     const targetColumn = column ? column + 1 : vscode.ViewColumn.Two;
 
-    // 同じ「ドキュメント ＋ 言語」のパネルが既にある → フォーカスしてcurrentに昇格
+    // 同じ「ドキュメント ＋ 言語」のパネルが既にある → そのまま維持
+    // reveal() は Cursor でトグル（閉じる）動作になるため呼ばない
     const existing = PreviewPanel.allPanels.get(panelKey);
     if (existing) {
-      existing._panel.reveal(targetColumn);
       PreviewPanel.currentPanel = existing;
       return;
     }

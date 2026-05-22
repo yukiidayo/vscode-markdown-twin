@@ -4,7 +4,7 @@ import { ITranslationProvider, PROVIDER_DISPLAY_NAMES, PROVIDER_ID_BY_NAME } fro
 import { DeeplProvider } from './providers/deeplProvider';
 import { PapagoProvider } from './providers/papagoProvider';
 import { GoogleCloudProvider } from './providers/googleCloudProvider';
-import { MicrosoftProvider } from './providers/microsoftProvider';
+import { MicrosoftProvider, AzureRegionError } from './providers/microsoftProvider';
 import { ApiKeyManager } from './apiKeyManager';
 import { StatusBar } from './statusBar';
 import { shouldTranslate, splitTranslatableParts, joinTranslatedParts, EXCLUDED_TOKEN_TYPES } from './languageDetector';
@@ -242,12 +242,13 @@ export class TranslationManager implements vscode.Disposable {
   ): Promise<void> {
     this.translatingNow = true;
     let accumulatedDone = 0;
+    let fatalError = false;
     this.statusBar?.showProgress(accumulatedDone, totalCount);
     this.onTranslationUpdatedEmitter.fire(); // シマー開始
 
     try {
       for (const targetLang of targetLangs) {
-        if (!this.translationActive || this.currentTranslationSessionId !== sessionId) break;
+        if (fatalError || !this.translationActive || this.currentTranslationSessionId !== sessionId) break;
         const textsToTranslate = langToTranslateMap.get(targetLang) ?? [];
         if (textsToTranslate.length === 0) continue;
 
@@ -255,7 +256,7 @@ export class TranslationManager implements vscode.Disposable {
         const docCache = this.cache.get(uriKey)!;
 
         for (let i = 0; i < textsToTranslate.length; i += batchSize) {
-          if (!this.translationActive || this.currentTranslationSessionId !== sessionId) break;
+          if (fatalError || !this.translationActive || this.currentTranslationSessionId !== sessionId) break;
           const batch = textsToTranslate.slice(i, i + batchSize);
 
           let translated: string[] = [];
@@ -265,7 +266,20 @@ export class TranslationManager implements vscode.Disposable {
               docCache.set(batch[k], translated[k] ?? batch[k]);
             }
           } catch (err: any) {
-            if (err?.name === 'TooManyRequestsError') {
+            if (err instanceof AzureRegionError) {
+              // リージョン設定ミス: 致命的エラーのため「設定を開く」ボタン付き通知を出してループ停止
+              const timestamp = new Date().toLocaleTimeString();
+              this.outputChannel.appendLine(`[${timestamp}] [ERROR] ${err.message}`);
+              fatalError = true;
+              this.statusBar?.showError();
+              const action = await vscode.window.showErrorMessage(
+                `Markdown Twin: Azureのリージョン設定が正しくない可能性があります（現在: "${err.region}"）。設定「markdownTwin.azureRegion」を確認してください（例: global, japaneast, eastus）。`,
+                '設定を開く'
+              );
+              if (action === '設定を開く') {
+                vscode.commands.executeCommand('workbench.action.openSettings', 'markdownTwin.azureRegion');
+              }
+            } else if (err?.name === 'TooManyRequestsError') {
               // レート制限（429）: 一時的な制限のためダイアログは出さずログのみ
               // キャッシュには保存しない（デバウンス後に再試行される）
               this.logWarning(`翻訳プロバイダのレート制限に達しました。しばらく待って自動的に再試行されます。`);
@@ -280,7 +294,7 @@ export class TranslationManager implements vscode.Disposable {
             }
           }
 
-          if (this.currentTranslationSessionId !== sessionId) break;
+          if (fatalError || this.currentTranslationSessionId !== sessionId) break;
 
           accumulatedDone += batch.length;
           this.statusBar?.showProgress(accumulatedDone, totalCount);
@@ -293,7 +307,7 @@ export class TranslationManager implements vscode.Disposable {
       }
     }
 
-    if (this.translationActive && this.currentTranslationSessionId === sessionId) {
+    if (!fatalError && this.translationActive && this.currentTranslationSessionId === sessionId) {
       this.statusBar?.showComplete(this.currentMode);
     }
   }

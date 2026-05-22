@@ -1,6 +1,15 @@
 import { ITranslationProvider } from './ITranslationProvider';
 import * as vscode from 'vscode';
 
+export class AzureRegionError extends Error {
+  readonly region: string;
+  constructor(region: string) {
+    super(`Azure translation failed (401): wrong region "${region}"`);
+    this.name = 'AzureRegionError';
+    this.region = region;
+  }
+}
+
 export class MicrosoftProvider implements ITranslationProvider {
   readonly id = 'microsoft';
   readonly name = 'Azure Translator';
@@ -38,6 +47,12 @@ export class MicrosoftProvider implements ITranslationProvider {
     if (!response.ok) {
       const errorJson: any = await response.json().catch(() => ({}));
       const errorMsg = errorJson?.error?.message ?? response.statusText;
+      if (response.status === 401) {
+        const lower = errorMsg.toLowerCase();
+        if (lower.includes('endpoint') || lower.includes('regional')) {
+          throw new AzureRegionError(region);
+        }
+      }
       throw new Error(`Azure translation failed (${response.status}): ${errorMsg}`);
     }
 

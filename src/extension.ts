@@ -3,6 +3,7 @@ import { TranslationManager } from './translationManager';
 import { StatusBar } from './statusBar';
 import { ApiKeyManager } from './apiKeyManager';
 import { ProviderSelector, PROVIDER_DEFS } from './providerSelector';
+import { PROVIDER_ID_BY_NAME } from './providers/ITranslationProvider';
 import { PreviewPanel } from './previewPanel';
 import { SUPPORTED_LANGUAGES, getTargetLanguageCode } from './languages';
 
@@ -13,7 +14,7 @@ function syncTargetLangContext(): void {
   vscode.commands.executeCommand('setContext', 'markdownTwin.targetLang', code);
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   const apiKeyManager = new ApiKeyManager(context.secrets);
   translationManager = new TranslationManager(apiKeyManager);
   context.subscriptions.push(translationManager);
@@ -46,11 +47,8 @@ export function activate(context: vscode.ExtensionContext) {
     const targetKey = `${editor.document.uri.toString()}@${code}`;
     const panelExists = PreviewPanel.allPanels.has(targetKey);
 
-    if (panelExists &&
-        PreviewPanel.currentPanel?.langCode === code &&
-        PreviewPanel.currentPanel?.editorDocumentUri.toString() === editor.document.uri.toString() &&
-        translationManager.isActive()) {
-      PreviewPanel.createOrShow(context.extensionUri, translationManager);
+    // パネルが存在する → 何もしない（再翻訳・再作成しない）
+    if (panelExists) {
       return;
     }
 
@@ -61,11 +59,13 @@ export function activate(context: vscode.ExtensionContext) {
       if (!provider) return;
     }
 
-    const requiresKey = ['deepl', 'papago', 'microsoft', 'google-cloud'].includes(provider);
+    // 設定値は表示名（例: "Azure"）なので内部IDに変換してからキー確認
+    const providerId = PROVIDER_ID_BY_NAME[provider] ?? provider;
+    const requiresKey = ['deepl', 'papago', 'microsoft', 'google-cloud'].includes(providerId);
     if (requiresKey) {
-      const key = await apiKeyManager.getKey(provider);
+      const key = await apiKeyManager.getKey(providerId);
       if (!key) {
-        await apiKeyManager.prompt(provider);
+        await apiKeyManager.prompt(providerId);
       }
     }
 
@@ -152,6 +152,28 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(statusBar);
+
+  // 初回 Markdown オープン時: APIキーが一件もなければ通知を出す
+  let firstRunChecked = false;
+  context.subscriptions.push(
+    vscode.workspace.onDidOpenTextDocument(async (doc) => {
+      if (firstRunChecked || doc.languageId !== 'markdown') return;
+      firstRunChecked = true;
+
+      const allProviderIds = PROVIDER_DEFS.filter(p => p.requiresKey).map(p => p.id);
+      const keys = await Promise.all(allProviderIds.map(id => apiKeyManager.getKey(id)));
+      const anyKey = keys.some(k => !!k);
+      if (!anyKey) {
+        const action = await vscode.window.showInformationMessage(
+          'Markdown Twin: APIキーが設定されていません。翻訳を開始するにはAPIキーを設定してください。',
+          'APIキーを設定する'
+        );
+        if (action) {
+          vscode.commands.executeCommand('markdownTwin.setApiKey');
+        }
+      }
+    })
+  );
 }
 
 export function deactivate() {
