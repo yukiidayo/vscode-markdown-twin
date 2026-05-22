@@ -10,6 +10,7 @@ import { StatusBar } from './statusBar';
 import { shouldTranslate, splitTranslatableParts, joinTranslatedParts, EXCLUDED_TOKEN_TYPES } from './languageDetector';
 import { getLanguageISO } from './languages';
 import { t } from './i18n';
+import { PreviewPanel } from './previewPanel';
 
 type Mode = 'translation-only' | 'bilingual';
 
@@ -17,7 +18,6 @@ export class TranslationManager implements vscode.Disposable {
   // 原文テキスト -> 翻訳テキストの翻訳メモリキャッシュ
   // Map<uriString@langCode, Map<originalText, translatedText>>
   private cache = new Map<string, Map<string, string>>();
-  private activeDocumentUri: vscode.Uri | null = null;
   private translationActive = false;
   private translatingNow = false;
   private currentMode: Mode = 'translation-only';
@@ -25,10 +25,9 @@ export class TranslationManager implements vscode.Disposable {
   private md = new MarkdownIt();
   private currentTranslationSessionId = 0;
   private outputChannel = vscode.window.createOutputChannel("Markdown Twin");
-  private targetLanguages = new Set<string>();
 
   // Webviewの更新連動用イベント
-  private onTranslationUpdatedEmitter = new vscode.EventEmitter<void>();
+  private onTranslationUpdatedEmitter = new vscode.EventEmitter<vscode.Uri | undefined>();
   readonly onTranslationUpdated = this.onTranslationUpdatedEmitter.event;
 
   constructor(private apiKeyManager: ApiKeyManager) {
@@ -38,9 +37,7 @@ export class TranslationManager implements vscode.Disposable {
     this.logInfo("Markdown Twin active.");
   }
 
-  setTargetLanguages(langs: string[]): void {
-    this.targetLanguages = new Set(langs);
-  }
+
 
   logWarning(message: string): void {
     const timestamp = new Date().toLocaleTimeString();
@@ -63,6 +60,8 @@ export class TranslationManager implements vscode.Disposable {
   }
 
   dispose(): void {
+    this.debounceTimers.forEach(clearTimeout);
+    this.debounceTimers.clear();
     this.outputChannel.dispose();
     this.onTranslationUpdatedEmitter.dispose();
   }
@@ -79,9 +78,7 @@ export class TranslationManager implements vscode.Disposable {
     return this.translatingNow;
   }
 
-  getActiveUri(): vscode.Uri | null {
-    return this.activeDocumentUri;
-  }
+
 
   getMode(): Mode {
     return this.currentMode;
@@ -91,7 +88,7 @@ export class TranslationManager implements vscode.Disposable {
     this.currentMode =
       this.currentMode === 'translation-only' ? 'bilingual' : 'translation-only';
     this.statusBar?.update(this.currentMode);
-    this.onTranslationUpdatedEmitter.fire(); // Webview側へ通知して即時再描画
+    this.onTranslationUpdatedEmitter.fire(undefined); // Webview側へ通知して即時再描画
   }
 
   // オンデマンドでキャッシュを引き当てて結合し翻訳文を返す
@@ -125,7 +122,6 @@ export class TranslationManager implements vscode.Disposable {
 
   async startTranslation(document: vscode.TextDocument, overrideProvider?: string): Promise<void> {
     const sessionId = ++this.currentTranslationSessionId;
-    this.activeDocumentUri = document.uri;
     this.translationActive = true;
 
     const config = vscode.workspace.getConfiguration('markdownTwin');
@@ -142,9 +138,13 @@ export class TranslationManager implements vscode.Disposable {
     const defaultTargetLang = getLanguageISO(rawTarget);
     const batchSize = config.get<number>('batchSize') ?? 10;
 
-    // 現在オープンされているプレビューパネルが必要としているすべての言語を対象にする
-    const targetLangs = this.targetLanguages.size > 0
-      ? Array.from(this.targetLanguages)
+    // 現在オープンされているプレビューパネルの中から、このドキュメント用として開かれている言語だけを動的に対象にする
+    const docUriStr = document.uri.toString();
+    const panelsForDoc = Array.from(PreviewPanel.allPanels.values()).filter(
+      p => p.editorDocumentUri.toString() === docUriStr
+    );
+    const targetLangs = panelsForDoc.length > 0
+      ? panelsForDoc.map(p => p.langCode)
       : [defaultTargetLang];
 
     const requiresKey = ['deepl', 'papago', 'microsoft', 'google-cloud'].includes(providerName);
@@ -172,7 +172,7 @@ export class TranslationManager implements vscode.Disposable {
     if (totalCount === 0) {
       // すべての言語がキャッシュから引き当てられた場合
       this.statusBar?.showComplete(this.currentMode);
-      this.onTranslationUpdatedEmitter.fire();
+      this.onTranslationUpdatedEmitter.fire(document.uri);
       return;
     }
 
@@ -245,7 +245,7 @@ export class TranslationManager implements vscode.Disposable {
     let accumulatedDone = 0;
     let fatalError = false;
     this.statusBar?.showProgress(accumulatedDone, totalCount);
-    this.onTranslationUpdatedEmitter.fire(); // シマー開始
+    this.onTranslationUpdatedEmitter.fire(documentUri); // シマー開始
 
     try {
       for (const targetLang of targetLangs) {
@@ -299,7 +299,7 @@ export class TranslationManager implements vscode.Disposable {
 
           accumulatedDone += batch.length;
           this.statusBar?.showProgress(accumulatedDone, totalCount);
-          this.onTranslationUpdatedEmitter.fire();
+          this.onTranslationUpdatedEmitter.fire(documentUri);
         }
       }
     } finally {
@@ -314,19 +314,27 @@ export class TranslationManager implements vscode.Disposable {
   }
 
   // キャッシュを破棄せず、翻訳メモリを維持したまま差分だけを再翻訳する
-  private debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  private debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   invalidateCache(uri: vscode.Uri): void {
-    if (this.translationActive && this.activeDocumentUri?.toString() === uri.toString()) {
-      if (this.debounceTimer) { clearTimeout(this.debounceTimer); }
+    if (this.translationActive) {
+      const uriStr = uri.toString();
+      let timer = this.debounceTimers.get(uriStr);
+      if (timer) {
+        clearTimeout(timer);
+      }
       const delay = (vscode.workspace.getConfiguration('markdownTwin').get<number>('debounceDelay') ?? 2) * 1000;
-      this.debounceTimer = setTimeout(() => {
-        // activeTextEditor に依存せず、activeDocumentUri から直接ドキュメントを解決する
+      timer = setTimeout(() => {
+        this.debounceTimers.delete(uriStr);
+        // activeTextEditor に依存せず、uri から直接ドキュメントを解決する
         const doc = vscode.workspace.textDocuments.find(
-          d => d.uri.toString() === this.activeDocumentUri?.toString()
+          d => d.uri.toString() === uriStr
         );
-        if (doc) { this.startTranslation(doc); }
+        if (doc) {
+          this.startTranslation(doc);
+        }
       }, delay);
+      this.debounceTimers.set(uriStr, timer);
     }
   }
 
@@ -350,18 +358,19 @@ export class TranslationManager implements vscode.Disposable {
   stopTranslation(): void {
     this.translationActive = false;
     this.translatingNow = false;
-    this.activeDocumentUri = null;
+    this.debounceTimers.forEach(clearTimeout);
+    this.debounceTimers.clear();
     this.cache.clear();
     this.currentTranslationSessionId++;
     this.statusBar?.setActiveProvider(null);
     this.statusBar?.showOffline();
-    this.onTranslationUpdatedEmitter.fire();
+    this.onTranslationUpdatedEmitter.fire(undefined);
   }
 
   // プロバイダー変更時も翻訳セッションと古いキャッシュをクリア
   clearAllCache(): void {
     this.cache.clear();
-    this.onTranslationUpdatedEmitter.fire();
+    this.onTranslationUpdatedEmitter.fire(undefined);
   }
 
   private async buildProvider(name: string): Promise<ITranslationProvider | null> {

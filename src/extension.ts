@@ -7,6 +7,7 @@ import { PROVIDER_ID_BY_NAME } from './providers/ITranslationProvider';
 import { PreviewPanel } from './previewPanel';
 import { SUPPORTED_LANGUAGES, getTargetLanguageCode } from './languages';
 import { t } from './i18n';
+import { isCursor } from './utils';
 
 let translationManager: TranslationManager;
 
@@ -44,13 +45,22 @@ export async function activate(context: vscode.ExtensionContext) {
     const config = vscode.workspace.getConfiguration('markdownTwin');
     const code = getTargetLanguageCode();
 
-    // 既に同じドキュメント＆同じ言語のプレビューがアクティブかつ翻訳が有効な場合 → フォーカスのみ
+    // 既に同じドキュメント＆同じ言語のプレビューがアクティブかつ翻訳が有効な場合
     const targetKey = `${editor.document.uri.toString()}@${code}`;
     const panelExists = PreviewPanel.allPanels.has(targetKey);
 
-    // パネルが存在する → 何もしない（再翻訳・再作成しない）
     if (panelExists) {
-      return;
+      if (isCursor()) {
+        // Cursor の場合は reveal すると閉じてしまうバグがあるため、早期リターンする（現状維持）
+        return;
+      } else {
+        // VS Code の場合は reveal してフォーカスさせ、翻訳を同期
+        PreviewPanel.createOrShow(context.extensionUri, translationManager);
+        if (translationManager.isActive()) {
+          translationManager.startTranslation(editor.document);
+        }
+        return;
+      }
     }
 
     // プロバイダー確認

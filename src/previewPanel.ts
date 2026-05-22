@@ -5,6 +5,7 @@ import { TranslationManager } from './translationManager';
 import { getTargetLanguageCode } from './languages';
 import { EXCLUDED_TOKEN_TYPES } from './languageDetector';
 import { t } from './i18n';
+import { isCursor } from './utils';
 
 export class PreviewPanel {
   public static currentPanel: PreviewPanel | undefined;
@@ -38,10 +39,13 @@ export class PreviewPanel {
     const targetColumn = column ? column + 1 : vscode.ViewColumn.Two;
 
     // 同じ「ドキュメント ＋ 言語」のパネルが既にある → そのまま維持
-    // reveal() は Cursor でトグル（閉じる）動作になるため呼ばない
+    // reveal() は Cursor でトグル（閉じる）動作になるため呼ばない。VS Code ではフォーカスする。
     const existing = PreviewPanel.allPanels.get(panelKey);
     if (existing) {
       PreviewPanel.currentPanel = existing;
+      if (!isCursor()) {
+        existing._panel.reveal(targetColumn);
+      }
       return;
     }
 
@@ -64,9 +68,6 @@ export class PreviewPanel {
     const newPanel = new PreviewPanel(panel, extensionUri, activeEditor, translationManager, code);
     PreviewPanel.currentPanel = newPanel;
     PreviewPanel.allPanels.set(panelKey, newPanel);
-    translationManager.setTargetLanguages(
-      Array.from(PreviewPanel.allPanels.values()).map(p => p.langCode)
-    );
   }
 
   public static updateFlagIcon(langCode: string): void {
@@ -146,12 +147,10 @@ export class PreviewPanel {
 
     // 自身に関連する翻訳更新を受け取ったら再描画
     this._disposables.push(
-      this.translationManager.onTranslationUpdated(() => {
-        const activeUri = this.translationManager.getActiveUri();
-        if (activeUri && activeUri.toString() === this._editor.document.uri.toString()) {
-          if (this._isSameDocAsActive) {
-            this._update();
-          }
+      this.translationManager.onTranslationUpdated((updatedUri) => {
+        const docUriStr = this._editor.document.uri.toString();
+        if (!updatedUri || updatedUri.toString() === docUriStr) {
+          this._update();
         }
       })
     );
@@ -212,9 +211,6 @@ export class PreviewPanel {
     const uriStr = this._editor.document.uri.toString();
     const panelKey = `${uriStr}@${this.langCode}`;
     PreviewPanel.allPanels.delete(panelKey);
-    this.translationManager.setTargetLanguages(
-      Array.from(PreviewPanel.allPanels.values()).map(p => p.langCode)
-    );
 
     if (PreviewPanel.currentPanel === this) {
       const remaining = Array.from(PreviewPanel.allPanels.values());

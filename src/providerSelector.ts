@@ -159,26 +159,6 @@ export class ProviderSelector {
     const code = getLanguageCodeFromLabel(selected.lang);
     vscode.commands.executeCommand('setContext', 'markdownTwin.targetLang', code);
 
-    if (this.translationManager.isActive()) {
-      const activeUri = this.translationManager.getActiveUri();
-      if (activeUri) {
-        const hasExistingPreview = Array.from(PreviewPanel.allPanels.values()).some(
-          p => p.editorDocumentUri.toString() === activeUri.toString()
-        );
-        if (hasExistingPreview) {
-          const doc = vscode.workspace.textDocuments.find(
-            d => d.uri.toString() === activeUri.toString()
-          );
-          if (doc) {
-            PreviewPanel.createOrShow(this.extensionUri, this.translationManager);
-            this.translationManager.startTranslation(doc);
-          }
-        }
-      }
-    } else {
-      this.statusBar.showOffline();
-    }
-
     return selected.lang;
   }
 
@@ -250,7 +230,7 @@ export class ProviderSelector {
     }
 
     if (this.translationManager.isActive()) {
-      const activeUri = this.translationManager.getActiveUri();
+      const activeUri = PreviewPanel.currentPanel?.editorDocumentUri;
       const doc = activeUri && vscode.workspace.textDocuments.find(
         d => d.uri.toString() === activeUri.toString()
       );
