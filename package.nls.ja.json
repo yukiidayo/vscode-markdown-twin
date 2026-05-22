@@ -1,0 +1,14 @@
+{
+  "markdownTwin.provider.description": "使用する翻訳プロバイダー。",
+  "markdownTwin.azureRegion.markdownDescription": "Azure 翻訳のリージョン。**[翻訳プロバイダーが Azure の場合のみ使用されます]** (例: global, japaneast, eastus, eastasia)。",
+  "markdownTwin.sourceLanguage.description": "翻訳元の言語。",
+  "markdownTwin.targetLanguage.description": "翻訳先の言語。",
+  "markdownTwin.defaultMode.description": "翻訳を有効にしたときのデフォルトの表示モード。",
+  "markdownTwin.batchSize.description": "1つのバッチで翻訳するブロック数。",
+  "markdownTwin.debounceDelay.description": "ドキュメント変更後に再翻訳を開始するまでの遅延時間 (1〜10秒)。タイピング時のAPIリクエストを削減するために増やします。",
+  "markdownTwin.commands.toggleTranslation": "Markdown Twin: 翻訳の有効化/無効化",
+  "markdownTwin.commands.toggleBilingual": "Markdown Twin: バイリンガル表示モードの切り替え",
+  "markdownTwin.commands.selectProvider": "Markdown Twin: 翻訳プロバイダーの選択",
+  "markdownTwin.commands.setApiKey": "Markdown Twin: APIキーの設定",
+  "markdownTwin.configuration.title": "Markdown Twin"
+}

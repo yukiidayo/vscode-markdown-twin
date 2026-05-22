@@ -6,6 +6,7 @@ import { ProviderSelector, PROVIDER_DEFS } from './providerSelector';
 import { PROVIDER_ID_BY_NAME } from './providers/ITranslationProvider';
 import { PreviewPanel } from './previewPanel';
 import { SUPPORTED_LANGUAGES, getTargetLanguageCode } from './languages';
+import { t } from './i18n';
 
 let translationManager: TranslationManager;
 
@@ -108,8 +109,8 @@ export async function activate(context: vscode.ExtensionContext) {
         .filter(p => p.requiresKey)
         .map(p => ({ label: p.displayName, id: p.id }));
       const picked = await vscode.window.showQuickPick(keyProviders, {
-        title: 'Markdown Twin: Set API Key',
-        placeHolder: 'Select the provider to configure',
+        title: `Markdown Twin: ${t('apiKeySetButton')}`,
+        placeHolder: t('selectProviderToReEnter'),
       });
       if (!picked) return;
       const existing = await apiKeyManager.getKey(picked.id);
@@ -165,8 +166,8 @@ export async function activate(context: vscode.ExtensionContext) {
       const anyKey = keys.some(k => !!k);
       if (!anyKey) {
         const action = await vscode.window.showInformationMessage(
-          'Markdown Twin: APIキーが設定されていません。翻訳を開始するにはAPIキーを設定してください。',
-          'APIキーを設定する'
+          t('apiKeyNotSet'),
+          t('apiKeySetButton')
         );
         if (action) {
           vscode.commands.executeCommand('markdownTwin.setApiKey');

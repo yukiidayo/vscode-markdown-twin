@@ -30,12 +30,12 @@
     "commands": [
       {
         "command": "markdownTwin.toggleTranslation",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": "$(globe)"
       },
       {
         "command": "markdownTwin.toggleTranslation.ja",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/ja.svg",
           "dark": "./media/flags/ja.svg"
@@ -43,7 +43,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.en",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/en.svg",
           "dark": "./media/flags/en.svg"
@@ -51,7 +51,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.ko",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/ko.svg",
           "dark": "./media/flags/ko.svg"
@@ -59,7 +59,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.es",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/es.svg",
           "dark": "./media/flags/es.svg"
@@ -67,7 +67,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.fr",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/fr.svg",
           "dark": "./media/flags/fr.svg"
@@ -75,7 +75,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.de",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/de.svg",
           "dark": "./media/flags/de.svg"
@@ -83,7 +83,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.it",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/it.svg",
           "dark": "./media/flags/it.svg"
@@ -91,7 +91,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.pt",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/pt.svg",
           "dark": "./media/flags/pt.svg"
@@ -99,7 +99,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.ru",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/ru.svg",
           "dark": "./media/flags/ru.svg"
@@ -107,7 +107,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.vi",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/vi.svg",
           "dark": "./media/flags/vi.svg"
@@ -115,7 +115,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.th",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/th.svg",
           "dark": "./media/flags/th.svg"
@@ -123,7 +123,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.id",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/id.svg",
           "dark": "./media/flags/id.svg"
@@ -131,7 +131,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.ar",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/ar.svg",
           "dark": "./media/flags/ar.svg"
@@ -139,7 +139,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.hi",
-        "title": "Markdown Twin: Toggle Translation",
+        "title": "%markdownTwin.commands.toggleTranslation%",
         "icon": {
           "light": "./media/flags/hi.svg",
           "dark": "./media/flags/hi.svg"
@@ -147,16 +147,16 @@
       },
       {
         "command": "markdownTwin.toggleBilingual",
-        "title": "Markdown Twin: Toggle Bilingual Mode",
+        "title": "%markdownTwin.commands.toggleBilingual%",
         "icon": "$(split-horizontal)"
       },
       {
         "command": "markdownTwin.selectProvider",
-        "title": "Markdown Twin: Select Translation Provider"
+        "title": "%markdownTwin.commands.selectProvider%"
       },
       {
         "command": "markdownTwin.setApiKey",
-        "title": "Markdown Twin: Set API Key"
+        "title": "%markdownTwin.commands.setApiKey%"
       }
     ],
     "menus": {
@@ -239,7 +239,7 @@
       ]
     },
     "configuration": {
-      "title": "Markdown Twin",
+      "title": "%markdownTwin.configuration.title%",
       "properties": {
         "markdownTwin.provider": {
           "type": "string",
@@ -250,13 +250,13 @@
             "Papago"
           ],
           "default": "Azure",
-          "description": "Active translation provider.",
+          "description": "%markdownTwin.provider.description%",
           "order": 1
         },
         "markdownTwin.azureRegion": {
           "type": "string",
           "default": "global",
-          "markdownDescription": "Azure Region for Azure Translator. **[Only used when Active Provider is Azure Translator (microsoft)]** (e.g. global, japaneast, eastus, eastasia).",
+          "markdownDescription": "%markdownTwin.azureRegion.markdownDescription%",
           "order": 2
         },
         "markdownTwin.sourceLanguage": {
@@ -279,7 +279,7 @@
             "Hindi (हिन्दी)"
           ],
           "default": "Japanese (日本語)",
-          "description": "Source language for translation.",
+          "description": "%markdownTwin.sourceLanguage.description%",
           "order": 3
         },
         "markdownTwin.targetLanguage": {
@@ -301,7 +301,7 @@
             "Hindi (हिन्दी)"
           ],
           "default": "Korean (한국어)",
-          "description": "Target language for translation.",
+          "description": "%markdownTwin.targetLanguage.description%",
           "order": 4
         },
         "markdownTwin.defaultMode": {
@@ -311,13 +311,13 @@
             "Bilingual"
           ],
           "default": "Translation Only",
-          "description": "Default display mode when translation is toggled on.",
+          "description": "%markdownTwin.defaultMode.description%",
           "order": 5
         },
         "markdownTwin.batchSize": {
           "type": "number",
           "default": 10,
-          "description": "Number of blocks to translate per batch.",
+          "description": "%markdownTwin.batchSize.description%",
           "order": 6
         },
         "markdownTwin.debounceDelay": {
@@ -325,7 +325,7 @@
           "default": 2,
           "minimum": 1,
           "maximum": 10,
-          "description": "Delay in seconds before re-translating after document changes (1–10s). Increase to reduce API requests when typing.",
+          "description": "%markdownTwin.debounceDelay.description%",
           "order": 7
         }
       }

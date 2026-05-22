@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getLanguageCode } from './languages';
 import { PROVIDER_DISPLAY_NAMES, PROVIDER_ID_BY_NAME } from './providers/ITranslationProvider';
+import { t } from './i18n';
 
 export class StatusBar implements vscode.Disposable {
   private item: vscode.StatusBarItem;
@@ -36,7 +37,7 @@ export class StatusBar implements vscode.Disposable {
     const providerName = this.resolveProviderName();
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     this.item.text = `$(sync~spin) Twin ${providerName} ${pct}% (${targetLang})`;
-    this.item.tooltip = `Translating… ${done}/${total} | Click to change provider`;
+    this.item.tooltip = t('translatingTooltip', done, total);
     this.item.show();
   }
 
@@ -47,7 +48,9 @@ export class StatusBar implements vscode.Disposable {
     const providerName = this.resolveProviderName();
     const icon = mode === 'bilingual' ? '$(split-horizontal)' : '$(globe)';
     this.item.text = `${icon} Twin ${providerName} (${targetLang})`;
-    this.item.tooltip = `Markdown Twin: ${mode === 'bilingual' ? 'Bilingual' : 'Translation only'} · ${providerName} · ${targetLang} | Click to change provider`;
+    
+    const modeLabel = mode === 'bilingual' ? t('bilingual') : t('translationOnly');
+    this.item.tooltip = t('statusCompleteTooltip', modeLabel, providerName, targetLang);
     this.item.show();
   }
 
@@ -58,7 +61,7 @@ export class StatusBar implements vscode.Disposable {
     const targetLang = getLanguageCode(rawTarget);
     const providerName = this.resolveProviderName();
     this.item.text = `$(globe) Twin: ${providerName} (${targetLang})`;
-    this.item.tooltip = `Markdown Twin: Ready · ${providerName} | Click to change provider`;
+    this.item.tooltip = t('statusOfflineTooltip', providerName);
     this.item.show();
   }
 
@@ -68,8 +71,8 @@ export class StatusBar implements vscode.Disposable {
 
   showError(): void {
     const providerName = this.resolveProviderName();
-    this.item.text = `$(warning) Twin: Error (${providerName})`;
-    this.item.tooltip = 'Translation error · Check Output panel for details | Click to change provider';
+    this.item.text = t('statusErrorText', providerName);
+    this.item.tooltip = t('statusErrorTooltip');
     this.item.show();
   }
 

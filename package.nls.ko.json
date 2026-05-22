@@ -1,0 +1,14 @@
+{
+  "markdownTwin.provider.description": "사용할 번역 프로바이더.",
+  "markdownTwin.azureRegion.markdownDescription": "Azure 번역의 리전. **[번역 프로바이더가 Azure인 경우에만 사용됩니다]** (예: global, japaneast, eastus, eastasia).",
+  "markdownTwin.sourceLanguage.description": "번역 원본 언어.",
+  "markdownTwin.targetLanguage.description": "번역 대상 언어.",
+  "markdownTwin.defaultMode.description": "번역을 활성화했을 때의 기본 표시 모드.",
+  "markdownTwin.batchSize.description": "한 배치에서 번역할 블록 수.",
+  "markdownTwin.debounceDelay.description": "문서 변경 후 재번역을 시작하기까지의 지연 시간 (1~10초). 입력 시 API 요청을 줄이기 위해 늘립니다.",
+  "markdownTwin.commands.toggleTranslation": "Markdown Twin: 번역 활성화/비활성화",
+  "markdownTwin.commands.toggleBilingual": "Markdown Twin: 이중 언어 표시 모드 전환",
+  "markdownTwin.commands.selectProvider": "Markdown Twin: 번역 프로바이더 선택",
+  "markdownTwin.commands.setApiKey": "Markdown Twin: API 키 설정",
+  "markdownTwin.configuration.title": "Markdown Twin"
+}

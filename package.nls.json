@@ -1,0 +1,14 @@
+{
+  "markdownTwin.provider.description": "Active translation provider.",
+  "markdownTwin.azureRegion.markdownDescription": "Azure Region for Azure Translator. **[Only used when Active Provider is Azure Translator (microsoft)]** (e.g. global, japaneast, eastus, eastasia).",
+  "markdownTwin.sourceLanguage.description": "Source language for translation.",
+  "markdownTwin.targetLanguage.description": "Target language for translation.",
+  "markdownTwin.defaultMode.description": "Default display mode when translation is toggled on.",
+  "markdownTwin.batchSize.description": "Number of blocks to translate per batch.",
+  "markdownTwin.debounceDelay.description": "Delay in seconds before re-translating after document changes (1-10s). Increase to reduce API requests when typing.",
+  "markdownTwin.commands.toggleTranslation": "Markdown Twin: Toggle Translation",
+  "markdownTwin.commands.toggleBilingual": "Markdown Twin: Toggle Bilingual Mode",
+  "markdownTwin.commands.selectProvider": "Markdown Twin: Select Translation Provider",
+  "markdownTwin.commands.setApiKey": "Markdown Twin: Set API Key",
+  "markdownTwin.configuration.title": "Markdown Twin"
+}

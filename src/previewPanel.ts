@@ -4,6 +4,7 @@ import MarkdownIt from 'markdown-it';
 import { TranslationManager } from './translationManager';
 import { getTargetLanguageCode } from './languages';
 import { EXCLUDED_TOKEN_TYPES } from './languageDetector';
+import { t } from './i18n';
 
 export class PreviewPanel {
   public static currentPanel: PreviewPanel | undefined;
@@ -24,7 +25,7 @@ export class PreviewPanel {
   public static createOrShow(extensionUri: vscode.Uri, translationManager: TranslationManager) {
     const activeEditor = vscode.window.activeTextEditor;
     if (!activeEditor) {
-      vscode.window.showErrorMessage('Markdown Twin: No active editor to preview');
+      vscode.window.showErrorMessage(t('noActiveEditor'));
       return;
     }
 
@@ -47,7 +48,7 @@ export class PreviewPanel {
     // 別ドキュメント or 別言語 → 新規パネル作成（完全にロックされたプレビュー）
     const panel = vscode.window.createWebviewPanel(
       PreviewPanel.viewType,
-      `Twin ${path.basename(activeEditor.document.fileName)}`,
+      t('previewTitle', path.basename(activeEditor.document.fileName)),
       targetColumn,
       {
         enableScripts: true,
@@ -361,7 +362,7 @@ function markdownTwinWebviewPlugin(md: any, options: PluginOptions): any {
           insertions.push({ index: i + 1, token: htmlToken });
         } else if (translating) {
           const htmlToken = new state.Token('html_block', '', 0);
-          htmlToken.content = `<div class="mt-translation mt-pending">翻訳中...</div>\n`;
+          htmlToken.content = `<div class="mt-translation mt-pending">${escapeHtml(t('translatingWaiting'))}</div>\n`;
           insertions.push({ index: i + 1, token: htmlToken });
         }
       }

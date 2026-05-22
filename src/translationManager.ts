@@ -9,6 +9,7 @@ import { ApiKeyManager } from './apiKeyManager';
 import { StatusBar } from './statusBar';
 import { shouldTranslate, splitTranslatableParts, joinTranslatedParts, EXCLUDED_TOKEN_TYPES } from './languageDetector';
 import { getLanguageISO } from './languages';
+import { t } from './i18n';
 
 type Mode = 'translation-only' | 'bilingual';
 
@@ -52,7 +53,7 @@ export class TranslationManager implements vscode.Disposable {
     if (error) {
       this.outputChannel.appendLine(error.stack ?? String(error));
     }
-    const suffix = showOutputHint ? ' (詳細は出力チャンネル「Markdown Twin」をご確認ください)' : '';
+    const suffix = showOutputHint ? t('showOutputHint') : '';
     vscode.window.showErrorMessage(`Markdown Twin: ${message}${suffix}`);
   }
 
@@ -151,7 +152,7 @@ export class TranslationManager implements vscode.Disposable {
       const key = await this.apiKeyManager.getKey(providerName);
       if (!key) {
         const displayName = PROVIDER_DISPLAY_NAMES[providerName] ?? providerName;
-        this.logError(`プロバイダ「${displayName}」のAPIキーが設定されていません。コマンド「Markdown Twin: Set API Key」からAPIキーを設定してください。`, undefined, false);
+        this.logError(t('apiKeyNotSetForProvider', displayName), undefined, false);
         this.statusBar?.showError();
         return;
       }
@@ -273,20 +274,20 @@ export class TranslationManager implements vscode.Disposable {
               fatalError = true;
               this.statusBar?.showError();
               const action = await vscode.window.showErrorMessage(
-                `Markdown Twin: Azureのリージョン設定が正しくない可能性があります（現在: "${err.region}"）。設定「markdownTwin.azureRegion」を確認してください（例: global, japaneast, eastus）。`,
-                '設定を開く'
+                t('azureRegionError', err.region ?? 'unknown'),
+                t('openSettings')
               );
-              if (action === '設定を開く') {
+              if (action === t('openSettings')) {
                 vscode.commands.executeCommand('workbench.action.openSettings', 'markdownTwin.azureRegion');
               }
             } else if (err?.name === 'TooManyRequestsError') {
               // レート制限（429）: 一時的な制限のためダイアログは出さずログのみ
               // キャッシュには保存しない（デバウンス後に再試行される）
-              this.logWarning(`翻訳プロバイダのレート制限に達しました。しばらく待って自動的に再試行されます。`);
+              this.logWarning(t('rateLimitReached'));
               this.statusBar?.showError();
             } else {
               // 設定ミス・ネットワーク障害など本物のエラー → ダイアログ表示
-              this.logError(`翻訳プロバイダ「${providerName}」での翻訳に失敗しました（言語: ${targetLang}）`, err);
+              this.logError(t('translationFailed', providerName, targetLang), err);
               // フォールバック: 原文をキャッシュに入れてスキップ
               for (let k = 0; k < batch.length; k++) {
                 docCache.set(batch[k], batch[k]);

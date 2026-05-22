@@ -5,6 +5,7 @@ import { StatusBar } from './statusBar';
 import { PROVIDER_ID_BY_NAME, PROVIDER_DISPLAY_NAMES } from './providers/ITranslationProvider';
 import { SUPPORTED_LANGUAGES, getLanguageCodeFromLabel } from './languages';
 import { PreviewPanel } from './previewPanel';
+import { t } from './i18n';
 
 interface ProviderItem extends vscode.QuickPickItem {
   id: string;
@@ -41,17 +42,17 @@ export class ProviderSelector {
       const langFlagUri = vscode.Uri.joinPath(this.extensionUri, 'media', 'flags', `${langCode}.svg`);
 
       const mode = this.translationManager.getMode();
-      const modeLabel = mode === 'bilingual' ? 'Bilingual' : 'Translation Only';
+      const modeLabel = mode === 'bilingual' ? t('bilingual') : t('translationOnly');
       const modeIcon = mode === 'bilingual' ? '$(split-horizontal)' : '$(file)';
 
       type TopItem = vscode.QuickPickItem & { action: 'provider' | 'language' | 'mode' };
       const top = await vscode.window.showQuickPick<TopItem>(
         [
-          { label: '$(globe) Provider', description: displayProvider,          action: 'provider' },
-          { label: 'Language',          description: rawLang,                  action: 'language', iconPath: langFlagUri },
-          { label: `${modeIcon} Mode`,  description: modeLabel,               action: 'mode' },
+          { label: `$(globe) ${t('provider')}`, description: displayProvider,          action: 'provider' },
+          { label: `${t('targetLanguage')}`,          description: rawLang,                  action: 'language', iconPath: langFlagUri },
+          { label: `${modeIcon} ${t('mode')}`,  description: modeLabel,               action: 'mode' },
         ],
-        { title: 'Markdown Twin', placeHolder: 'Select setting to change' }
+        { title: 'Markdown Twin', placeHolder: t('selectSetting') }
       );
 
       if (!top) return;
@@ -85,7 +86,7 @@ export class ProviderSelector {
 
     const selected = await vscode.window.showQuickPick(
       await this._buildProviderItems(currentId),
-      { title: 'Select Translation Provider', placeHolder: 'Choose a provider', matchOnDescription: true }
+      { title: t('selectProvider'), placeHolder: t('chooseProvider'), matchOnDescription: true }
     );
     if (!selected) return undefined;
 
@@ -101,16 +102,16 @@ export class ProviderSelector {
     const rawCurrent = config.get<string>('provider') ?? 'Azure';
     const currentId  = PROVIDER_ID_BY_NAME[rawCurrent] ?? rawCurrent;
 
-    const BACK:  ProviderItem = { label: '$(arrow-left) Back',    id: '__back__',  displayName: '', requiresKey: false };
+    const BACK:  ProviderItem = { label: `$(arrow-left) ${t('back')}`,    id: '__back__',  displayName: '', requiresKey: false };
     const SEP1:  ProviderItem = { label: '', kind: vscode.QuickPickItemKind.Separator, id: '', displayName: '', requiresKey: false };
     const SEP2:  ProviderItem = { label: '', kind: vscode.QuickPickItemKind.Separator, id: '', displayName: '', requiresKey: false };
-    const RESET: ProviderItem = { label: '$(key) Reset API Key...', id: '__reset__', displayName: '', requiresKey: false };
+    const RESET: ProviderItem = { label: `$(key) ${t('resetApiKey')}`, id: '__reset__', displayName: '', requiresKey: false };
 
     const providerItems = await this._buildProviderItems(currentId);
 
     const selected = await vscode.window.showQuickPick(
       [BACK, SEP1, ...providerItems, SEP2, RESET],
-      { title: 'Provider', placeHolder: 'Choose a translation provider', matchOnDescription: true }
+      { title: t('provider'), placeHolder: t('chooseProvider'), matchOnDescription: true }
     );
 
     if (!selected) return undefined;
@@ -134,7 +135,7 @@ export class ProviderSelector {
 
     type LangItem = vscode.QuickPickItem & { lang: string };
 
-    const BACK: LangItem = { label: '$(arrow-left) Back', lang: '__back__' };
+    const BACK: LangItem = { label: `$(arrow-left) ${t('back')}`, lang: '__back__' };
     const SEP:  LangItem = { label: '', kind: vscode.QuickPickItemKind.Separator, lang: '' };
 
     const langItems: LangItem[] = SUPPORTED_LANGUAGES
@@ -148,7 +149,7 @@ export class ProviderSelector {
 
     const selected = await vscode.window.showQuickPick<LangItem>(
       [BACK, SEP, ...langItems],
-      { title: 'Output Language', placeHolder: 'Choose a target language' }
+      { title: t('outputLanguage'), placeHolder: t('chooseTargetLanguage') }
     );
 
     if (!selected) return undefined;
@@ -196,14 +197,14 @@ export class ProviderSelector {
     const available = withKeys.filter((p): p is typeof keyProviders[0] => p !== null);
 
     if (available.length === 0) {
-      vscode.window.showInformationMessage('No API keys are currently saved.');
+      vscode.window.showInformationMessage(t('noSavedKeys'));
       return;
     }
 
     type ResetItem = vscode.QuickPickItem & { id: string };
     const picked = await vscode.window.showQuickPick<ResetItem>(
       available.map(p => ({ label: p.displayName, id: p.id })),
-      { title: 'Reset API Key', placeHolder: 'Select provider to re-enter API key' }
+      { title: t('resetApiKeyTitle'), placeHolder: t('selectProviderToReEnter') }
     );
     if (!picked) return;
 

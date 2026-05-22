@@ -1,0 +1,48 @@
+import { TranslationType } from './type';
+
+export const en: TranslationType = {
+  // menus / Quick Pick
+  selectSetting: 'Select setting to change',
+  provider: 'Provider',
+  targetLanguage: 'Language',
+  mode: 'Mode',
+  bilingual: 'Bilingual',
+  translationOnly: 'Translation Only',
+  back: 'Back',
+  resetApiKey: 'Reset API Key...',
+  selectProvider: 'Select Translation Provider',
+  chooseProvider: 'Choose a provider',
+  chooseTargetLanguage: 'Choose a target language',
+  outputLanguage: 'Output Language',
+  resetApiKeyTitle: 'Reset API Key',
+  selectProviderToReEnter: 'Select provider to re-enter API key',
+  noSavedKeys: 'No API keys are currently saved.',
+
+  // API Key Manager
+  apiKeyAlreadyConfigured: '•••••••• (Already configured. Enter new key to overwrite)',
+  apiKeyPaste: 'Paste your API key here',
+  apiKeyEnter: (provider: string) => `Enter your ${provider} API key`,
+  apiKeyAlreadyConfiguredPapago: '•••••••• (Already configured. Format: ClientID:ClientSecret)',
+  apiKeyFormatPapago: 'Format: ClientID:ClientSecret',
+  apiKeyEnterPapago: 'Enter Papago API key as "ClientID:ClientSecret"',
+
+  // Notifications / Messages
+  apiKeyNotSet: 'Markdown Twin: API key is not set. Please configure an API key to start translation.',
+  apiKeySetButton: 'Set API Key',
+  noActiveEditor: 'Markdown Twin: No active editor to preview',
+  previewTitle: (filename: string) => `Twin ${filename}`,
+  translatingWaiting: 'Translating...',
+  apiKeyNotSetForProvider: (provider: string) => `API key for provider "${provider}" is not set. Please configure an API key using the command "Markdown Twin: Set API Key".`,
+  azureRegionError: (region: string) => `Markdown Twin: Azure region setting might be incorrect (current: "${region}"). Please check the setting "markdownTwin.azureRegion" (e.g. global, japaneast, eastus).`,
+  openSettings: 'Open Settings',
+  rateLimitReached: 'Translation provider rate limit reached. Re-trying automatically in a moment.',
+  translationFailed: (provider: string, lang: string) => `Failed to translate with provider "${provider}" (Language: ${lang})`,
+  showOutputHint: ' (Please check the output channel "Markdown Twin" for details)',
+
+  // Status Bar
+  translatingTooltip: (done: number, total: number) => `Translating… ${done}/${total} | Click to change provider`,
+  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} · ${provider} · ${target} | Click to change provider`,
+  statusOfflineTooltip: (provider: string) => `Markdown Twin: Ready · ${provider} | Click to change provider`,
+  statusErrorText: (provider: string) => `Twin: Error (${provider})`,
+  statusErrorTooltip: 'Translation error · Check Output panel for details | Click to change provider',
+};
