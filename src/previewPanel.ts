@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import MarkdownIt from 'markdown-it';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-markdown';
@@ -21,6 +22,8 @@ export class PreviewPanel {
   private _isInitialized = false;
   public readonly langCode: string;
   private _viewMode: 'preview' | 'source' = 'preview';
+  private _cachedThemeId: string | null = null;
+  private _cachedTokenThemeVars: Record<string, string> = {};
 
   public get editorDocumentUri(): vscode.Uri {
     return this._editor.document.uri;
@@ -215,6 +218,8 @@ export class PreviewPanel {
     
     // Prism.js を用いて Markdown 構文を美しい HTML にハイライト
     const highlightedSource = Prism.highlight(sourceMarkdown, Prism.languages.markdown, 'markdown');
+    const sourceLineCount = sourceMarkdown.split(/\r?\n/).length;
+    const sourceTokenThemeVars = this._resolveSourceTokenThemeVars();
 
     if (!this._isInitialized) {
       const twinCssUri = webview.asWebviewUri(
@@ -223,15 +228,167 @@ export class PreviewPanel {
       const markdownCssUri = webview.asWebviewUri(
         vscode.Uri.file(path.join(this._extensionUri.fsPath, 'media', 'markdown.css'))
       );
-      webview.html = this._getHtmlForWebview(webview, renderedHtml, highlightedSource, markdownCssUri, twinCssUri);
+      webview.html = this._getHtmlForWebview(webview, renderedHtml, highlightedSource, sourceLineCount, sourceTokenThemeVars, markdownCssUri, twinCssUri);
       this._isInitialized = true;
     } else {
       webview.postMessage({
         type: 'update',
         html: renderedHtml,
-        sourceHtml: highlightedSource
+        sourceHtml: highlightedSource,
+        sourceLineCount,
+        sourceTokenThemeVars
       });
     }
+  }
+
+  private _resolveSourceTokenThemeVars(): Record<string, string> {
+    const themeId = vscode.workspace.getConfiguration('workbench').get<string>('colorTheme') ?? '';
+    if (this._cachedThemeId === themeId) {
+      return this._cachedTokenThemeVars;
+    }
+
+    const vars = this._loadSourceTokenThemeVars(themeId);
+    this._cachedThemeId = themeId;
+    this._cachedTokenThemeVars = vars;
+    return vars;
+  }
+
+  private _loadSourceTokenThemeVars(themeId: string): Record<string, string> {
+    if (!themeId) return {};
+    const themePath = this._resolveThemeFilePath(themeId);
+    if (!themePath) return {};
+
+    const themeRules = this._readThemeTokenRules(themePath);
+    const customRules = this._readCustomizedTokenRules();
+    const tokenRules = [...themeRules, ...customRules];
+    if (tokenRules.length === 0) return {};
+
+    const pick = (...patterns: string[]) => this._pickTokenForeground(tokenRules, patterns);
+
+    const heading = pick('text.html.markdown markup.heading', 'markup.heading.markdown', 'markup.heading');
+    const headingMarker = pick('punctuation.definition.heading.markdown', 'text.html.markdown punctuation.definition.heading.markdown');
+    const link = pick('meta.link.inet', 'markup.underline.link', 'string.other.link', 'string.url');
+    const linkMarker = pick(
+      'text.html.markdown meta.link.inet punctuation',
+      'text.html.markdown meta.link.inline punctuation.definition.string',
+      'text.html.markdown meta.link.reference punctuation.definition.constant',
+      'punctuation.definition.link'
+    );
+    const linkRef = pick('text.html.markdown meta.link.reference constant.other.reference', 'meta.link.reference constant.other.reference');
+    const code = pick('text.html.markdown markup.inline.raw', 'text.html.markdown markup.raw.block', 'markup.inline.raw', 'markup.fenced_code.block');
+    const punctuation = pick('punctuation.definition.markdown', 'punctuation.definition.heading.markdown', 'punctuation.definition.table.markdown');
+    const boldMarker = pick('text.html.markdown punctuation.definition.bold', 'punctuation.definition.bold');
+    const boldContent = pick('markup.bold.markdown', 'markup.bold');
+    const italicMarker = pick('text.html.markdown punctuation.definition.italic', 'punctuation.definition.italic');
+    const italicContent = pick('markup.italic.markdown', 'markup.italic');
+    const strikeMarker = pick('text.html.markdown punctuation.definition.strikethrough', 'punctuation.definition.strikethrough');
+    const strikeContent = pick('markup.strikethrough.markdown', 'markup.strikethrough', 'markup.deleted');
+    const list = pick('punctuation.definition.list.begin.markdown', 'beginning.punctuation.definition.list');
+    const quote = pick('text.html.markdown markup.quote', 'beginning.punctuation.definition.quote');
+    const quoteMarker = pick('text.html.markdown beginning.punctuation.definition.quote', 'beginning.punctuation.definition.quote');
+    const comment = pick('comment');
+
+    const vars: Record<string, string> = {};
+    if (heading) {
+      vars['--mt-token-heading'] = heading;
+    }
+    if (headingMarker) vars['--mt-token-heading-marker'] = headingMarker;
+    if (link) {
+      vars['--mt-token-link'] = link;
+      vars['--mt-token-link-content'] = link;
+    }
+    if (linkMarker) vars['--mt-token-link-marker'] = linkMarker;
+    if (linkRef) vars['--mt-token-link-ref'] = linkRef;
+    if (code) vars['--mt-token-code'] = code;
+    if (punctuation) {
+      vars['--mt-token-punctuation'] = punctuation;
+      vars['--mt-token-hr'] = punctuation;
+    }
+    if (boldMarker) vars['--mt-token-bold-marker'] = boldMarker;
+    if (boldContent) vars['--mt-token-bold-content'] = boldContent;
+    if (italicMarker) vars['--mt-token-italic-marker'] = italicMarker;
+    if (italicContent) vars['--mt-token-italic-content'] = italicContent;
+    if (strikeMarker) vars['--mt-token-strike-marker'] = strikeMarker;
+    if (strikeContent) vars['--mt-token-strike-content'] = strikeContent;
+    if (list) vars['--mt-token-list'] = list;
+    if (quote) {
+      vars['--mt-token-quote'] = quote;
+      vars['--mt-token-comment'] = quote;
+    }
+    if (quoteMarker) vars['--mt-token-quote-marker'] = quoteMarker;
+    if (comment) vars['--mt-token-comment'] = comment;
+
+    return vars;
+  }
+
+  private _resolveThemeFilePath(themeId: string): string | null {
+    for (const ext of vscode.extensions.all) {
+      const themes = ext.packageJSON?.contributes?.themes;
+      if (!Array.isArray(themes)) continue;
+      const hit = themes.find((theme: any) => theme?.id === themeId || theme?.label === themeId);
+      if (hit?.path) {
+        return path.join(ext.extensionUri.fsPath, hit.path);
+      }
+    }
+    return null;
+  }
+
+  private _readThemeTokenRules(themePath: string, visited = new Set<string>()): Array<{ scope?: string | string[]; settings?: any }> {
+    const normalizedPath = path.normalize(themePath);
+    if (visited.has(normalizedPath)) return [];
+    visited.add(normalizedPath);
+
+    let themeObj: any;
+    try {
+      const raw = fs.readFileSync(normalizedPath, 'utf8');
+      themeObj = Function('"use strict"; return (' + raw + ');')();
+    } catch {
+      return [];
+    }
+
+    let inherited: Array<{ scope?: string | string[]; settings?: any }> = [];
+    if (typeof themeObj?.include === 'string') {
+      const includePath = path.resolve(path.dirname(normalizedPath), themeObj.include);
+      inherited = this._readThemeTokenRules(includePath, visited);
+    }
+
+    const own = Array.isArray(themeObj?.tokenColors) ? themeObj.tokenColors : [];
+    return [...inherited, ...own];
+  }
+
+  private _readCustomizedTokenRules(): Array<{ scope?: string | string[]; settings?: any }> {
+    const custom = vscode.workspace.getConfiguration('editor').get<any>('tokenColorCustomizations');
+    const rules = custom?.textMateRules;
+    return Array.isArray(rules) ? rules : [];
+  }
+
+  private _pickTokenForeground(
+    tokenRules: Array<{ scope?: string | string[]; settings?: any }>,
+    patterns: string[]
+  ): string | undefined {
+    let picked: string | undefined;
+    for (const rule of tokenRules) {
+      const scopes = this._normalizeScopes(rule.scope);
+      if (scopes.length === 0) continue;
+      const isMatch = scopes.some(scope =>
+        patterns.some(pattern => scope.includes(pattern))
+      );
+      if (!isMatch) continue;
+
+      const fg = typeof rule.settings?.foreground === 'string' ? rule.settings.foreground.trim() : '';
+      if (fg.length > 0) {
+        picked = fg;
+      }
+    }
+    return picked;
+  }
+
+  private _normalizeScopes(scope: string | string[] | undefined): string[] {
+    if (!scope) return [];
+    if (Array.isArray(scope)) {
+      return scope.map(s => String(s).trim()).filter(Boolean);
+    }
+    return String(scope).split(',').map(s => s.trim()).filter(Boolean);
   }
 
   public dispose() {
@@ -262,6 +419,8 @@ export class PreviewPanel {
     webview: vscode.Webview,
     renderedHtml: string,
     highlightedSource: string,
+    sourceLineCount: number,
+    sourceTokenThemeVars: Record<string, string>,
     markdownCssUri: vscode.Uri,
     twinCssUri: vscode.Uri
   ) {
@@ -282,7 +441,7 @@ export class PreviewPanel {
     <div id="preview-container" style="display: ${isPreview ? 'block' : 'none'};">${renderedHtml}</div>
 
     <!-- ソースコード表示用コンテナ -->
-    <div id="source-container" style="display: ${isSource ? 'block' : 'none'};">
+    <div id="source-container" style="display: ${isSource ? 'flex' : 'none'};">
         <div id="line-numbers"></div>
         <pre class="language-markdown"><code class="language-markdown" id="source-code">${highlightedSource}</code></pre>
     </div>
@@ -291,38 +450,183 @@ export class PreviewPanel {
         const vscode = acquireVsCodeApi();
         let isSyncingScroll = false;
         let scrollTimeout;
+        const initialSourceLineCount = ${sourceLineCount};
+        const initialSourceTokenThemeVars = ${JSON.stringify(sourceTokenThemeVars)};
 
-        function updateLineNumbers() {
+        // HTMLタグを壊さずに改行で安全に分割するパーサ関数
+        function splitHtmlIntoLines(html) {
+            try {
+                const lines = [];
+                let currentLine = '';
+                const tagStack = [];
+                const regex = /(<[^>]+>|[^<]+)/g;
+                let match;
+                
+                while ((match = regex.exec(html)) !== null) {
+                    const token = match[0];
+                    if (token.startsWith('<')) {
+                        if (token.startsWith('<' + '/')) {
+                            tagStack.pop();
+                            currentLine += token;
+                        } else {
+                            if (!token.endsWith('/>') && !token.startsWith('<!--')) {
+                                const tagNameMatch = token.match(/<([a-zA-Z0-9]+)/);
+                                if (tagNameMatch) {
+                                    tagStack.push(token);
+                                }
+                            }
+                            currentLine += token;
+                        }
+                    } else {
+                        const newline = String.fromCharCode(10);
+                        const textLines = token.split(newline);
+                        for (let i = 0; i < textLines.length; i++) {
+                            if (i > 0) {
+                                let closeTags = '';
+                                for (let j = tagStack.length - 1; j >= 0; j--) {
+                                    const openTag = tagStack[j];
+                                    const tagMatch = openTag.match(/<([a-zA-Z0-9]+)/);
+                                    const tagName = tagMatch ? tagMatch[1] : '';
+                                    if (tagName) {
+                                        closeTags += '<' + '/' + tagName + '>';
+                                    }
+                                }
+                                currentLine += closeTags;
+                                lines.push(currentLine);
+                                
+                                let openTags = '';
+                                for (let j = 0; j < tagStack.length; j++) {
+                                    openTags += tagStack[j];
+                                }
+                                currentLine = openTags;
+                            }
+                            currentLine += textLines[i];
+                        }
+                    }
+                }
+                if (currentLine) {
+                    lines.push(currentLine);
+                }
+                return lines;
+            } catch (err) {
+                console.error('Error splitting HTML into lines:', err);
+                const newline = String.fromCharCode(10);
+                return (html || '').split(newline);
+            }
+        }
+
+        // 各行番号とコード行の物理的な高さを同期する関数
+        function syncLineHeights() {
             const codeEl = document.getElementById('source-code');
             const lineNumbersEl = document.getElementById('line-numbers');
             if (!codeEl || !lineNumbersEl) return;
+
+            const codeLines = codeEl.querySelectorAll('.code-line');
+            const lineNumbers = lineNumbersEl.querySelectorAll('.line-number');
             
-            const text = codeEl.textContent || '';
-            const lines = text.split('\\n').length;
-            let html = '';
-            for (let i = 1; i <= lines; i++) {
-                html += '<div class="line-number">' + i + '</div>';
+            if (codeLines.length !== lineNumbers.length) return;
+            
+            for (let i = 0; i < codeLines.length; i++) {
+                const height = codeLines[i].getBoundingClientRect().height;
+                lineNumbers[i].style.height = height + 'px';
             }
-            lineNumbersEl.innerHTML = html;
+            updateScrollBeyondLastLinePadding();
         }
 
-        updateLineNumbers();
+        // ハイライト済みソースHTMLをコード行ごとにラップして描画する関数
+        function normalizeExpectedLineCount(expectedLineCount) {
+            const count = Number(expectedLineCount);
+            return Number.isFinite(count) && count > 0 ? Math.floor(count) : 1;
+        }
+
+        function alignLineCount(lines, expectedLineCount) {
+            const targetCount = normalizeExpectedLineCount(expectedLineCount);
+            if (lines.length < targetCount) {
+                for (let i = lines.length; i < targetCount; i++) {
+                    lines.push('');
+                }
+            }
+            return lines;
+        }
+
+        function updateScrollBeyondLastLinePadding() {
+            const sourceContainerEl = document.getElementById('source-container');
+            const codeLineEl = document.querySelector('#source-code .code-line');
+            if (!sourceContainerEl || !codeLineEl) return;
+
+            const lineHeight = codeLineEl.getBoundingClientRect().height;
+            const viewportHeight = sourceContainerEl.clientHeight;
+            const minPadding = 22;
+            const bottomPadding = Math.max(minPadding, viewportHeight - lineHeight);
+            sourceContainerEl.style.setProperty('--mt-scroll-beyond-last-line', bottomPadding + 'px');
+        }
+
+        function applySourceTokenThemeVars(themeVars) {
+            const sourceContainerEl = document.getElementById('source-container');
+            if (!sourceContainerEl || !themeVars || typeof themeVars !== 'object') return;
+            for (const key of Object.keys(themeVars)) {
+                const value = themeVars[key];
+                if (typeof value === 'string' && value.length > 0) {
+                    sourceContainerEl.style.setProperty(key, value);
+                }
+            }
+        }
+
+        function renderSourceCode(rawHtml, expectedLineCount) {
+            const codeEl = document.getElementById('source-code');
+            const lineNumbersEl = document.getElementById('line-numbers');
+            if (!codeEl || !lineNumbersEl) return;
+
+            // HTMLを行ごとに安全に分割
+            const lines = alignLineCount(splitHtmlIntoLines(rawHtml), expectedLineCount);
+            
+            let codeHtml = '';
+            let lineNumHtml = '';
+            
+            lines.forEach((line, index) => {
+                const displayLine = line.trim() === '' ? '&nbsp;' : line;
+                codeHtml += '<div class="code-line">' + displayLine + '</div>';
+                lineNumHtml += '<div class="line-number">' + (index + 1) + '</div>';
+            });
+
+            codeEl.innerHTML = codeHtml;
+            lineNumbersEl.innerHTML = lineNumHtml;
+
+            // 高さを即座に同期
+            syncLineHeights();
+        }
+
+        // 初期状態で一度レンダリングして高さを同期 (要素存在チェックとtry-catchで極めて安全に)
+        try {
+            applySourceTokenThemeVars(initialSourceTokenThemeVars);
+            const sourceCodeEl = document.getElementById('source-code');
+            if (sourceCodeEl) {
+                const initialRawHtml = sourceCodeEl.innerHTML;
+                renderSourceCode(initialRawHtml, initialSourceLineCount);
+            }
+        } catch (e) {
+            console.error('Error in initial source code render:', e);
+        }
+
+        window.addEventListener('resize', syncLineHeights);
 
         window.addEventListener('message', event => {
             const message = event.data;
             if (message.type === 'update') {
                 document.getElementById('preview-container').innerHTML = message.html;
+                applySourceTokenThemeVars(message.sourceTokenThemeVars);
                 const codeEl = document.getElementById('source-code');
                 if (codeEl) {
-                    codeEl.innerHTML = message.sourceHtml;
-                    updateLineNumbers();
+                    renderSourceCode(message.sourceHtml, message.sourceLineCount);
                 }
             } else if (message.type === 'setViewMode') {
                 const previewEl = document.getElementById('preview-container');
                 const sourceEl = document.getElementById('source-container');
                 if (message.mode === 'source') {
                     previewEl.style.display = 'none';
-                    sourceEl.style.display = 'block';
+                    sourceEl.style.display = 'flex';
+                    // モード切り替え時にレイアウトを確定させて高さを再同期
+                    setTimeout(syncLineHeights, 0);
                 } else {
                     previewEl.style.display = 'block';
                     sourceEl.style.display = 'none';

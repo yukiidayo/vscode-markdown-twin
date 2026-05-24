@@ -18,7 +18,7 @@
 .mt-translation.mt-pending {
   opacity: 0.55;
   font-style: normal;
-  border-left-color: var(--vscode-disabledForeground, #888888);
+  border-left-color: var(--vscode-disabledForeground);
   animation: mtPulse 1.5s ease-in-out infinite;
 }
 
@@ -54,7 +54,7 @@
 /* 一行翻訳専用ローディング状態 (プレミアムシマー効果) */
 .mt-translation-only.mt-pending {
   opacity: 0.75;
-  background: linear-gradient(90deg, var(--vscode-editor-foreground, #ccc) 25%, var(--vscode-disabledForeground, #888) 50%, var(--vscode-editor-foreground, #ccc) 75%);
+  background: linear-gradient(90deg, var(--vscode-editor-foreground) 25%, var(--vscode-disabledForeground) 50%, var(--vscode-editor-foreground) 75%);
   background-size: 200% 100%;
   animation: mtShimmer 1.5s infinite linear;
   -webkit-background-clip: text;
@@ -74,6 +74,7 @@
 #source-container {
   display: flex;
   flex-direction: row;
+  align-items: flex-start;
   padding: 0;
   margin: 0;
   width: 100%;
@@ -81,85 +82,166 @@
   box-sizing: border-box;
   background-color: var(--vscode-editor-background);
   overflow: auto;
+  --mt-scroll-beyond-last-line: 22px;
 }
 
 #line-numbers {
-  padding: 8px 16px 20px 0;
+  padding: 8px 16px var(--mt-scroll-beyond-last-line) 0;
   text-align: right;
-  color: var(--vscode-editorLineNumber-foreground, #858585);
+  color: var(--vscode-editorLineNumber-foreground);
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
   font-size: var(--vscode-editor-font-size, 14px);
-  line-height: var(--vscode-editor-line-height, 1.5);
   user-select: none;
   min-width: 32px;
   opacity: 0.8;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.line-number {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  line-height: normal;
 }
 
 pre.language-markdown {
   flex: 1;
   background-color: transparent;
-  color: var(--vscode-editor-foreground, #d4d4d4);
+  color: var(--vscode-editor-foreground);
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
   font-size: var(--vscode-editor-font-size, 14px);
   font-weight: var(--vscode-editor-font-weight, normal);
   line-height: var(--vscode-editor-line-height, 1.5);
-  padding: 8px 14px 20px 14px;
+  padding: 8px 14px var(--mt-scroll-beyond-last-line) 14px;
   margin: 0;
   border-radius: 0;
   border: none;
   overflow: visible;
-  white-space: pre; /* Force no wrap to keep line numbers aligned */
-  word-wrap: normal;
+  white-space: pre-wrap; /* Enable line wrapping */
+  word-wrap: break-word; /* Wrap long words */
+  word-break: break-all;
   tab-size: var(--vscode-editor-tab-size, 4);
+  box-sizing: border-box;
 }
 
-/* VS Code の各トークンカラー変数（CSS Variables）を Prism トークンクラスにマッピング */
+.code-line {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-all;
+  min-height: 1.5em;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* VS Code の公式トークンカラー変数（CSS Variables）を Prism トークンクラスにマッピング */
 .token.title,
 .token.important {
-  color: var(--vscode-symbolIcon-methodForeground, #4fc1ff);
+  color: var(--mt-token-heading, var(--vscode-symbolIcon-keywordForeground, var(--vscode-editor-foreground)));
   font-weight: bold;
+}
+
+.token.title .token.punctuation,
+.token.important .token.punctuation {
+  color: var(--mt-token-heading-marker, var(--mt-token-heading, var(--mt-token-punctuation, var(--vscode-editor-foreground))));
 }
 
 .token.bold {
   font-weight: bold;
-  color: var(--vscode-editorToken-string-foreground, #ce9178);
+  color: var(--mt-token-bold, var(--vscode-editor-foreground));
 }
 
 .token.italic {
   font-style: italic;
-  color: var(--vscode-editorToken-string-foreground, #ce9178);
+  color: var(--mt-token-italic, var(--vscode-symbolIcon-stringForeground, var(--vscode-editor-foreground)));
+}
+
+.token.italic .token.content {
+  color: var(--mt-token-italic-content, var(--mt-token-italic, var(--vscode-editor-foreground)));
+}
+
+.token.italic .token.punctuation {
+  color: var(--mt-token-italic-marker, var(--mt-token-punctuation, var(--vscode-editor-foreground)));
+}
+
+.token.bold .token.content {
+  color: var(--mt-token-bold-content, var(--mt-token-bold, var(--vscode-editor-foreground)));
+}
+
+.token.bold .token.punctuation {
+  color: var(--mt-token-bold-marker, var(--mt-token-punctuation, var(--vscode-editor-foreground)));
 }
 
 .token.punctuation {
-  color: var(--vscode-editor-foreground, #d4d4d4);
-  opacity: 0.7;
+  color: var(--mt-token-punctuation, var(--vscode-editor-foreground));
+  opacity: 0.8;
 }
 
 .token.code {
-  color: var(--vscode-debugConsole-infoForeground, #9cdcfe);
+  color: var(--mt-token-code, var(--vscode-symbolIcon-variableForeground, var(--vscode-textPreformat-foreground, var(--vscode-editor-foreground))));
   font-family: var(--vscode-editor-font-family, monospace);
 }
 
 .token.url,
 .token.url-reference {
-  color: var(--vscode-textLink-foreground, #3794ff);
+  color: var(--mt-token-link, var(--vscode-textLink-foreground));
   text-decoration: underline;
 }
 
+.token.url .token.content,
+.token.url-reference .token.content {
+  color: var(--mt-token-link-content, var(--mt-token-link, var(--vscode-textLink-foreground)));
+}
+
+.token.url .token.variable,
+.token.url-reference .token.variable {
+  color: var(--mt-token-link-ref, var(--mt-token-link-content, var(--mt-token-link, var(--vscode-textLink-foreground))));
+}
+
+.token.url .token.url {
+  color: var(--mt-token-link, var(--vscode-textLink-foreground));
+}
+
+.token.url .token.punctuation,
+.token.url .token.operator,
+.token.url-reference .token.punctuation {
+  color: var(--mt-token-link-marker, var(--mt-token-punctuation, var(--vscode-editor-foreground)));
+  text-decoration: none;
+}
+
+.token.strike .token.content {
+  color: var(--mt-token-strike-content, var(--vscode-editor-foreground));
+}
+
+.token.strike .token.punctuation {
+  color: var(--mt-token-strike-marker, var(--mt-token-punctuation, var(--vscode-editor-foreground)));
+}
+
 .token.blockquote {
-  color: var(--vscode-editorMarkerNavigationWarning-background, #cca700);
+  color: var(--mt-token-quote, var(--vscode-symbolIcon-operatorForeground, var(--vscode-descriptionForeground)));
   font-style: italic;
+  opacity: 0.85;
+}
+
+.token.blockquote .token.punctuation {
+  color: var(--mt-token-quote-marker, var(--mt-token-quote, var(--mt-token-punctuation, var(--vscode-editor-foreground))));
 }
 
 .token.list {
-  color: var(--vscode-symbolIcon-enumeratorForeground, #b5cea8);
+  color: var(--mt-token-list, var(--vscode-symbolIcon-keywordForeground, var(--vscode-editor-foreground)));
   font-weight: bold;
 }
 
 .token.hr {
-  color: var(--vscode-disabledForeground, #808080);
+  color: var(--mt-token-hr, var(--vscode-symbolIcon-operatorForeground, var(--vscode-descriptionForeground)));
+  opacity: 0.6;
 }
 
 .token.comment {
-  color: var(--vscode-editor-lineHighlightBorder, #6a9955);
+  color: var(--mt-token-comment, var(--vscode-symbolIcon-operatorForeground, var(--vscode-descriptionForeground)));
 }
