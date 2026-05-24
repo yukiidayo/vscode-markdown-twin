@@ -128,6 +128,79 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Command: Copy Translated Markdown
+  context.subscriptions.push(
+    vscode.commands.registerCommand('markdownTwin.copyTranslatedMarkdown', async () => {
+      const activePanel = PreviewPanel.currentPanel;
+      if (!activePanel) return;
+      try {
+        const mdText = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
+        await vscode.env.clipboard.writeText(mdText);
+        vscode.window.showInformationMessage(t('copiedToClipboard'));
+      } catch (err: any) {
+        translationManager.logError('Failed to copy translated markdown', err);
+      }
+    })
+  );
+
+  // Command: Export Translated Markdown
+  context.subscriptions.push(
+    vscode.commands.registerCommand('markdownTwin.exportTranslatedMarkdown', async () => {
+      const activePanel = PreviewPanel.currentPanel;
+      if (!activePanel) return;
+      try {
+        const mdText = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
+        
+        const docUri = activePanel.editorDocument.uri;
+        const uriPath = docUri.path;
+        const lastSlash = uriPath.lastIndexOf('/');
+        const fileName = lastSlash !== -1 ? uriPath.substring(lastSlash + 1) : 'document.md';
+        const lastDot = fileName.lastIndexOf('.');
+        const baseName = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
+        
+        const ext = '.md';
+        const defaultFileName = `${baseName}.${activePanel.langCode}${ext}`;
+        
+        const saveUri = await vscode.window.showSaveDialog({
+          defaultUri: vscode.Uri.joinPath(docUri, '..', defaultFileName),
+          filters: {
+            'Markdown': ['md', 'markdown']
+          }
+        });
+        
+        if (saveUri) {
+          const buffer = Buffer.from(mdText, 'utf8');
+          await vscode.workspace.fs.writeFile(saveUri, buffer);
+          const saveLastSlash = saveUri.path.lastIndexOf('/');
+          const saveFileName = saveLastSlash !== -1 ? saveUri.path.substring(saveLastSlash + 1) : 'translated.md';
+          vscode.window.showInformationMessage(t('exportedSuccessfully', saveFileName));
+        }
+      } catch (err: any) {
+        translationManager.logError('Failed to export translated markdown', err);
+      }
+    })
+  );
+
+  // Command: Show Translated Source
+  context.subscriptions.push(
+    vscode.commands.registerCommand('markdownTwin.openTranslatedSource', () => {
+      const activePanel = PreviewPanel.currentPanel;
+      if (activePanel) {
+        activePanel.setViewMode('source');
+      }
+    })
+  );
+
+  // Command: Show Translated Preview
+  context.subscriptions.push(
+    vscode.commands.registerCommand('markdownTwin.openPreviewFromSource', () => {
+      const activePanel = PreviewPanel.currentPanel;
+      if (activePanel) {
+        activePanel.setViewMode('preview');
+      }
+    })
+  );
+
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(async (editor) => {
       if (!editor || editor.document.languageId !== 'markdown') return;

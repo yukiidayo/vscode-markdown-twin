@@ -156,6 +156,26 @@
       {
         "command": "markdownTwin.setApiKey",
         "title": "%markdownTwin.commands.setApiKey%"
+      },
+      {
+        "command": "markdownTwin.copyTranslatedMarkdown",
+        "title": "Copy Translated Markdown",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "markdownTwin.exportTranslatedMarkdown",
+        "title": "Export Translated Markdown",
+        "icon": "$(save)"
+      },
+      {
+        "command": "markdownTwin.openTranslatedSource",
+        "title": "Show Translated Source",
+        "icon": "$(code)"
+      },
+      {
+        "command": "markdownTwin.openPreviewFromSource",
+        "title": "Show Translated Preview",
+        "icon": "$(eye)"
       }
     ],
     "menus": {
@@ -234,6 +254,26 @@
           "command": "markdownTwin.toggleTranslation.hi",
           "when": "resourceLangId == markdown && markdownTwin.targetLang == 'hi'",
           "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.copyTranslatedMarkdown",
+          "when": "activeWebviewPanelId == 'markdownTwinPreview'",
+          "group": "navigation@2"
+        },
+        {
+          "command": "markdownTwin.exportTranslatedMarkdown",
+          "when": "activeWebviewPanelId == 'markdownTwinPreview'",
+          "group": "navigation@3"
+        },
+        {
+          "command": "markdownTwin.openTranslatedSource",
+          "when": "activeWebviewPanelId == 'markdownTwinPreview' && !markdownTwin.showingSource",
+          "group": "navigation@4"
+        },
+        {
+          "command": "markdownTwin.openPreviewFromSource",
+          "when": "activeWebviewPanelId == 'markdownTwinPreview' && markdownTwin.showingSource",
+          "group": "navigation@4"
         }
       ]
     },
@@ -335,12 +375,14 @@
     ]
   },
   "dependencies": {
-    "markdown-it": "^14.0.0"
+    "markdown-it": "^14.0.0",
+    "prismjs": "^1.30.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "@types/markdown-it": "^14.0.0",
     "@types/node": "^18.15.0",
+    "@types/prismjs": "^1.26.6",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^2.22.0",
     "esbuild": "^0.28.0",

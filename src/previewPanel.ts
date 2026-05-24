@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import MarkdownIt from 'markdown-it';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-markdown';
 import { TranslationManager } from './translationManager';
 import { getTargetLanguageCode } from './languages';
 import { EXCLUDED_TOKEN_TYPES } from './languageDetector';
@@ -18,9 +20,24 @@ export class PreviewPanel {
   private _editor: vscode.TextEditor;
   private _isInitialized = false;
   public readonly langCode: string;
+  private _viewMode: 'preview' | 'source' = 'preview';
 
   public get editorDocumentUri(): vscode.Uri {
     return this._editor.document.uri;
+  }
+
+  public get editorDocument(): vscode.TextDocument {
+    return this._editor.document;
+  }
+
+  public get viewColumn(): vscode.ViewColumn | undefined {
+    return this._panel.viewColumn;
+  }
+
+  public setViewMode(mode: 'preview' | 'source'): void {
+    this._viewMode = mode;
+    this._panel.webview.postMessage({ type: 'setViewMode', mode });
+    vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', mode === 'source');
   }
 
   public static createOrShow(extensionUri: vscode.Uri, translationManager: TranslationManager) {
@@ -193,6 +210,12 @@ export class PreviewPanel {
 
     const renderedHtml = md.render(text);
 
+    // 翻訳適用済みの生のMarkdownソースコードを生成
+    const sourceMarkdown = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
+    
+    // Prism.js を用いて Markdown 構文を美しい HTML にハイライト
+    const highlightedSource = Prism.highlight(sourceMarkdown, Prism.languages.markdown, 'markdown');
+
     if (!this._isInitialized) {
       const twinCssUri = webview.asWebviewUri(
         vscode.Uri.file(path.join(this._extensionUri.fsPath, 'media', 'markdown-twin.css'))
@@ -200,14 +223,19 @@ export class PreviewPanel {
       const markdownCssUri = webview.asWebviewUri(
         vscode.Uri.file(path.join(this._extensionUri.fsPath, 'media', 'markdown.css'))
       );
-      webview.html = this._getHtmlForWebview(webview, renderedHtml, markdownCssUri, twinCssUri);
+      webview.html = this._getHtmlForWebview(webview, renderedHtml, highlightedSource, markdownCssUri, twinCssUri);
       this._isInitialized = true;
     } else {
-      webview.postMessage({ type: 'update', html: renderedHtml });
+      webview.postMessage({
+        type: 'update',
+        html: renderedHtml,
+        sourceHtml: highlightedSource
+      });
     }
   }
 
   public dispose() {
+    vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', false);
     const uriStr = this._editor.document.uri.toString();
     const panelKey = `${uriStr}@${this.langCode}`;
     PreviewPanel.allPanels.delete(panelKey);
@@ -230,7 +258,16 @@ export class PreviewPanel {
     }
   }
 
-  private _getHtmlForWebview(webview: vscode.Webview, renderedHtml: string, markdownCssUri: vscode.Uri, twinCssUri: vscode.Uri) {
+  private _getHtmlForWebview(
+    webview: vscode.Webview,
+    renderedHtml: string,
+    highlightedSource: string,
+    markdownCssUri: vscode.Uri,
+    twinCssUri: vscode.Uri
+  ) {
+    const isPreview = this._viewMode === 'preview';
+    const isSource = this._viewMode === 'source';
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -241,7 +278,14 @@ export class PreviewPanel {
     <link rel="stylesheet" href="${twinCssUri}">
 </head>
 <body>
-    <div id="content">${renderedHtml}</div>
+    <!-- プレビュー表示用コンテナ -->
+    <div id="preview-container" style="display: ${isPreview ? 'block' : 'none'};">${renderedHtml}</div>
+
+    <!-- ソースコード表示用コンテナ -->
+    <div id="source-container" style="display: ${isSource ? 'block' : 'none'};">
+        <pre class="language-markdown"><code class="language-markdown">${highlightedSource}</code></pre>
+    </div>
+
     <script>
         const vscode = acquireVsCodeApi();
         let isSyncingScroll = false;
@@ -250,7 +294,21 @@ export class PreviewPanel {
         window.addEventListener('message', event => {
             const message = event.data;
             if (message.type === 'update') {
-                document.getElementById('content').innerHTML = message.html;
+                document.getElementById('preview-container').innerHTML = message.html;
+                const codeEl = document.getElementById('source-container').querySelector('code');
+                if (codeEl) {
+                    codeEl.innerHTML = message.sourceHtml;
+                }
+            } else if (message.type === 'setViewMode') {
+                const previewEl = document.getElementById('preview-container');
+                const sourceEl = document.getElementById('source-container');
+                if (message.mode === 'source') {
+                    previewEl.style.display = 'none';
+                    sourceEl.style.display = 'block';
+                } else {
+                    previewEl.style.display = 'block';
+                    sourceEl.style.display = 'none';
+                }
             } else if (message.type === 'scroll') {
                 const line = message.line;
                 const element = findElementByLine(line);
@@ -265,15 +323,18 @@ export class PreviewPanel {
 
         window.addEventListener('scroll', () => {
             if (isSyncingScroll) return;
-            const element = findElementAtViewportTop();
-            if (element) {
-                const line = parseInt(element.getAttribute('data-line'), 10);
-                vscode.postMessage({ command: 'scroll', line: line });
+            const previewEl = document.getElementById('preview-container');
+            if (previewEl && previewEl.style.display !== 'none') {
+                const element = findElementAtViewportTop();
+                if (element) {
+                    const line = parseInt(element.getAttribute('data-line'), 10);
+                    vscode.postMessage({ command: 'scroll', line: line });
+                }
             }
         });
 
         function findElementByLine(line) {
-            const elements = Array.from(document.querySelectorAll('[data-line]'));
+            const elements = Array.from(document.querySelectorAll('#preview-container [data-line]'));
             if (elements.length === 0) return null;
             let closest = null;
             let closestDiff = Infinity;
@@ -290,7 +351,7 @@ export class PreviewPanel {
         }
 
         function findElementAtViewportTop() {
-            const elements = Array.from(document.querySelectorAll('[data-line]'));
+            const elements = Array.from(document.querySelectorAll('#preview-container [data-line]'));
             if (elements.length === 0) return null;
             const viewportTop = window.scrollY || document.documentElement.scrollTop;
             let closest = null;

@@ -66,3 +66,81 @@
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+/* ==========================================================================
+   ソースコードプレビューモード用スタイル (Prism.js シンタックスハイライト)
+   ========================================================================== */
+
+#source-container {
+  padding: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+pre.language-markdown {
+  background-color: var(--vscode-editor-background, #1e1e1e);
+  color: var(--vscode-editor-foreground, #d4d4d4);
+  font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
+  font-size: var(--vscode-editor-font-size, 14px);
+  font-weight: var(--vscode-editor-font-weight, normal);
+  line-height: 1.5;
+  padding: 20px;
+  margin: 0;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-widget-border, #3c3c3c);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* VS Code の各トークンカラー変数（CSS Variables）を Prism トークンクラスにマッピング */
+.token.title,
+.token.important {
+  color: var(--vscode-symbolIcon-methodForeground, #4fc1ff);
+  font-weight: bold;
+}
+
+.token.bold {
+  font-weight: bold;
+  color: var(--vscode-editorToken-string-foreground, #ce9178);
+}
+
+.token.italic {
+  font-style: italic;
+  color: var(--vscode-editorToken-string-foreground, #ce9178);
+}
+
+.token.punctuation {
+  color: var(--vscode-editor-foreground, #d4d4d4);
+  opacity: 0.7;
+}
+
+.token.code {
+  color: var(--vscode-debugConsole-infoForeground, #9cdcfe);
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+.token.url,
+.token.url-reference {
+  color: var(--vscode-textLink-foreground, #3794ff);
+  text-decoration: underline;
+}
+
+.token.blockquote {
+  color: var(--vscode-editorMarkerNavigationWarning-background, #cca700);
+  font-style: italic;
+}
+
+.token.list {
+  color: var(--vscode-symbolIcon-enumeratorForeground, #b5cea8);
+  font-weight: bold;
+}
+
+.token.hr {
+  color: var(--vscode-disabledForeground, #808080);
+}
+
+.token.comment {
+  color: var(--vscode-editor-lineHighlightBorder, #6a9955);
+}

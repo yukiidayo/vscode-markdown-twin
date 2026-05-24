@@ -38,6 +38,8 @@ export const ko: TranslationType = {
   rateLimitReached: '번역 프로바이더의 속도 제한에 도달했습니다. 잠시 후 자동으로 재시도됩니다.',
   translationFailed: (provider: string, lang: string) => `번역 프로바이더 "${provider}"번역에 실패했습니다 (언어: ${lang})`,
   showOutputHint: ' (자세한 내용은 출력 채널 "Markdown Twin"을 확인해 주세요)',
+  copiedToClipboard: '번역된 Markdown을 클립보드에 복사했습니다!',
+  exportedSuccessfully: (filename: string) => `${filename}에 성공적으로 내보냈습니다`,
 
   // Status Bar
   translatingTooltip: (done: number, total: number) => `번역 중… ${done}/${total} | 클릭하여 프로바이더 변경`,

@@ -380,6 +380,36 @@ export class TranslationManager implements vscode.Disposable {
     this.onTranslationUpdatedEmitter.fire(undefined);
   }
 
+  /** 翻訳キャッシュを適用した完成版Markdownドキュメントの生成 */
+  generateTranslatedMarkdown(document: vscode.TextDocument, langCode: string): string {
+    const originalText = document.getText();
+    const mode = this.getMode();
+    const cacheKey = `${document.uri.toString()}@${langCode}`;
+    const docCache = this.cache.get(cacheKey);
+    if (!docCache) return originalText;
+
+    // 翻訳対象のテキストブロック（原文）を抽出
+    const translatableTexts = Array.from(this.extractTranslatableTexts(document));
+    
+    // 長い文章から順番に置換して部分一致の誤置換を防止
+    translatableTexts.sort((a, b) => b.length - a.length);
+
+    let resultMarkdown = originalText;
+    for (const text of translatableTexts) {
+      const translated = docCache.get(text);
+      if (!translated || translated === text) continue;
+
+      if (mode === 'translation-only') {
+        resultMarkdown = resultMarkdown.split(text).join(translated);
+      } else {
+        // 対訳モード: 原文の直後に改行してイタリック形式で翻訳を挿入
+        const bilingualReplacement = `${text}\n\n*${translated}*`;
+        resultMarkdown = resultMarkdown.split(text).join(bilingualReplacement);
+      }
+    }
+    return resultMarkdown;
+  }
+
   private async buildProvider(name: string): Promise<ITranslationProvider | null> {
     const getKey = async (id: string) => {
       const key = await this.apiKeyManager.getKey(id);

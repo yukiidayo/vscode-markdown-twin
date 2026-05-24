@@ -38,6 +38,8 @@ export const ja: TranslationType = {
   rateLimitReached: '翻訳プロバイダーのレート制限に達しました。しばらく待って自動的に再試行されます。',
   translationFailed: (provider: string, lang: string) => `翻訳プロバイダー「${provider}」での翻訳に失敗しました（言語: ${lang}）`,
   showOutputHint: ' (詳細は出力チャンネル「Markdown Twin」をご確認ください)',
+  copiedToClipboard: '翻訳されたMarkdownをクリップボードにコピーしました！',
+  exportedSuccessfully: (filename: string) => `${filename} に正常にエクスポートしました`,
 
   // Status Bar
   translatingTooltip: (done: number, total: number) => `翻訳中… ${done}/${total} | クリックしてプロバイダーを変更`,

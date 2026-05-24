@@ -38,6 +38,8 @@ export const en: TranslationType = {
   rateLimitReached: 'Translation provider rate limit reached. Re-trying automatically in a moment.',
   translationFailed: (provider: string, lang: string) => `Failed to translate with provider "${provider}" (Language: ${lang})`,
   showOutputHint: ' (Please check the output channel "Markdown Twin" for details)',
+  copiedToClipboard: 'Translated markdown copied to clipboard!',
+  exportedSuccessfully: (filename: string) => `Successfully exported to ${filename}`,
 
   // Status Bar
   translatingTooltip: (done: number, total: number) => `Translating… ${done}/${total} | Click to change provider`,

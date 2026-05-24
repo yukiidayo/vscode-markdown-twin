@@ -36,6 +36,8 @@ export interface TranslationType {
   rateLimitReached: string;
   translationFailed: (provider: string, lang: string) => string;
   showOutputHint: string;
+  copiedToClipboard: string;
+  exportedSuccessfully: (filename: string) => string;
 
   // Status Bar
   translatingTooltip: (done: number, total: number) => string;
