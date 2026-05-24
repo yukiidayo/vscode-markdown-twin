@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import MarkdownIt from 'markdown-it';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-markdown';
+import { Registry, parseRawGrammar, INITIAL, type IGrammar, type IRawGrammar, type IRawTheme, type StateStack } from 'vscode-textmate';
+import { loadWASM, OnigScanner, OnigString } from 'vscode-oniguruma';
 import { TranslationManager } from './translationManager';
 import { getTargetLanguageCode } from './languages';
 import { EXCLUDED_TOKEN_TYPES } from './languageDetector';
@@ -22,6 +22,12 @@ export class PreviewPanel {
   private _isInitialized = false;
   public readonly langCode: string;
   private _viewMode: 'preview' | 'source' = 'preview';
+  private _tmRegistry: Registry | null = null;
+  private _tmGrammar: IGrammar | null = null;
+  private _tmGrammarScopeName: string | null = null;
+  private _tmThemeId: string | null = null;
+  private _tmScopeToPath = new Map<string, string>();
+  private _tmOnigReadyPromise: Promise<void> | null = null;
   private _cachedThemeId: string | null = null;
   private _cachedTokenThemeVars: Record<string, string> = {};
 
@@ -37,17 +43,71 @@ export class PreviewPanel {
     return this._panel.viewColumn;
   }
 
+  public get viewMode(): 'preview' | 'source' {
+    return this._viewMode;
+  }
+
+  public static getActivePanel(): PreviewPanel | undefined {
+    if (PreviewPanel.currentPanel?._panel.active) {
+      return PreviewPanel.currentPanel;
+    }
+
+    const active = Array.from(PreviewPanel.allPanels.values()).find(panel => panel._panel.active);
+    if (active) {
+      PreviewPanel.currentPanel = active;
+      active._syncShowingSourceContext();
+      return active;
+    }
+
+    return PreviewPanel.currentPanel;
+  }
+
   public setViewMode(mode: 'preview' | 'source'): void {
     this._viewMode = mode;
     this._panel.webview.postMessage({ type: 'setViewMode', mode });
-    vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', mode === 'source');
+    this._syncShowingSourceContext();
   }
 
-  public static createOrShow(extensionUri: vscode.Uri, translationManager: TranslationManager) {
+  private _syncShowingSourceContext(): void {
+    vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', this._viewMode === 'source');
+  }
+
+  private static async resolveEditorForDocument(
+    document: vscode.TextDocument
+  ): Promise<vscode.TextEditor | undefined> {
     const activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) {
+    if (activeEditor?.document.uri.toString() === document.uri.toString()) {
+      return activeEditor;
+    }
+
+    const visibleEditor = vscode.window.visibleTextEditors.find(
+      e => e.document.uri.toString() === document.uri.toString()
+    );
+    if (visibleEditor) {
+      return visibleEditor;
+    }
+
+    try {
+      return await vscode.window.showTextDocument(document, {
+        preview: false,
+        preserveFocus: true
+      });
+    } catch {
+      return undefined;
+    }
+  }
+
+  public static async createOrShow(
+    extensionUri: vscode.Uri,
+    translationManager: TranslationManager,
+    document?: vscode.TextDocument
+  ): Promise<boolean> {
+    const activeEditor = document
+      ? await PreviewPanel.resolveEditorForDocument(document)
+      : vscode.window.activeTextEditor;
+    if (!activeEditor || activeEditor.document.languageId !== 'markdown') {
       vscode.window.showErrorMessage(t('noActiveEditor'));
-      return;
+      return false;
     }
 
     const code = getTargetLanguageCode();
@@ -63,10 +123,11 @@ export class PreviewPanel {
     const existing = PreviewPanel.allPanels.get(panelKey);
     if (existing) {
       PreviewPanel.currentPanel = existing;
+      existing._syncShowingSourceContext();
       if (!isCursor()) {
         existing._panel.reveal(targetColumn);
       }
-      return;
+      return true;
     }
 
     // 別ドキュメント or 別言語 → 新規パネル作成（完全にロックされたプレビュー）
@@ -88,6 +149,7 @@ export class PreviewPanel {
     const newPanel = new PreviewPanel(panel, extensionUri, activeEditor, translationManager, code);
     PreviewPanel.currentPanel = newPanel;
     PreviewPanel.allPanels.set(panelKey, newPanel);
+    return true;
   }
 
   public static updateFlagIcon(langCode: string): void {
@@ -117,6 +179,7 @@ export class PreviewPanel {
       () => {
         if (this._panel.active) {
           PreviewPanel.currentPanel = this;
+          this._syncShowingSourceContext();
           if (this.translationManager.isActive()) {
             this.translationManager.startTranslation(this._editor.document);
           } else {
@@ -148,6 +211,16 @@ export class PreviewPanel {
           if (this._isSameDocAsActive) {
             this._update();
           }
+        }
+      },
+      null,
+      this._disposables
+    );
+
+    vscode.workspace.onDidChangeConfiguration(
+      e => {
+        if (e.affectsConfiguration('workbench.colorTheme') && this._isSameDocAsActive) {
+          this._update();
         }
       },
       null,
@@ -188,7 +261,7 @@ export class PreviewPanel {
     this._editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
   }
 
-  private _update() {
+  private async _update() {
     const webview = this._panel.webview;
     const document = this._editor.document;
     const text = document.getText();
@@ -217,8 +290,13 @@ export class PreviewPanel {
     const sourceMarkdown = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
     
     // Prism.js を用いて Markdown 構文を美しい HTML にハイライト
-    const highlightedSource = Prism.highlight(sourceMarkdown, Prism.languages.markdown, 'markdown');
+    let highlightedSource = this._escapeHtml(sourceMarkdown);
     const sourceLineCount = sourceMarkdown.split(/\r?\n/).length;
+    try {
+      highlightedSource = await this._highlightSourceMarkdownWithTextMate(sourceMarkdown);
+    } catch (err: any) {
+      this.translationManager.logWarning(`TextMate source highlight fallback: ${err?.message ?? String(err)}`);
+    }
     const sourceTokenThemeVars = this._resolveSourceTokenThemeVars();
 
     if (!this._isInitialized) {
@@ -239,6 +317,169 @@ export class PreviewPanel {
         sourceTokenThemeVars
       });
     }
+  }
+
+  private async _highlightSourceMarkdownWithTextMate(sourceMarkdown: string): Promise<string> {
+    const ready = await this._ensureTextMateReady();
+    if (!ready || !this._tmGrammar || !this._tmRegistry) {
+      return this._escapeHtml(sourceMarkdown);
+    }
+
+    const lines = sourceMarkdown.split(/\r?\n/);
+    const colorMap = this._tmRegistry.getColorMap();
+    const renderedLines: string[] = [];
+    let ruleStack: StateStack | null = INITIAL;
+
+    for (const line of lines) {
+      const result = this._tmGrammar.tokenizeLine2(line, ruleStack);
+      ruleStack = result.ruleStack;
+      renderedLines.push(this._renderTextMateLine(line, result.tokens, colorMap));
+    }
+
+    return renderedLines.join('\n');
+  }
+
+  private _renderTextMateLine(line: string, binaryTokens: Uint32Array, colorMap: string[]): string {
+    if (line.length === 0 || binaryTokens.length === 0) {
+      return '';
+    }
+
+    let html = '';
+    for (let i = 0; i < binaryTokens.length; i += 2) {
+      const startIndex = binaryTokens[i];
+      const metadata = binaryTokens[i + 1];
+      const endIndex = (i + 2 < binaryTokens.length) ? binaryTokens[i + 2] : line.length;
+      if (endIndex <= startIndex) continue;
+
+      const raw = line.slice(startIndex, endIndex);
+      if (!raw) continue;
+
+      const style = this._styleFromTokenMetadata(metadata, colorMap);
+      const escaped = this._escapeHtml(raw);
+      html += style ? `<span style="${style}">${escaped}</span>` : escaped;
+    }
+    return html;
+  }
+
+  private _styleFromTokenMetadata(metadata: number, colorMap: string[]): string {
+    const foregroundId = this._metadataForeground(metadata);
+    const fontStyle = this._metadataFontStyle(metadata);
+    const styles: string[] = [];
+
+    const color = colorMap[foregroundId];
+    // TextMateのデフォルト前景色(通常はid=1)はWebview側のeditor-foregroundに委ねる。
+    // ここで黒を固定すると、ダークテーマで本文が読めなくなる。
+    if (foregroundId > 1 && color) styles.push(`color:${color}`);
+    if (fontStyle & 1) styles.push('font-style:italic');
+    if (fontStyle & 2) styles.push('font-weight:700');
+    if (fontStyle & 4) styles.push('text-decoration:underline');
+    if (fontStyle & 8) styles.push('text-decoration:line-through');
+
+    return styles.join(';');
+  }
+
+  private _metadataFontStyle(metadata: number): number {
+    return (metadata >>> 11) & 0b1111;
+  }
+
+  private _metadataForeground(metadata: number): number {
+    return (metadata >>> 15) & 0x1ff;
+  }
+
+  private _escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private async _ensureTextMateReady(): Promise<boolean> {
+    const themeId = vscode.workspace.getConfiguration('workbench').get<string>('colorTheme') ?? '';
+    if (this._tmRegistry && this._tmGrammar && this._tmThemeId === themeId) {
+      return true;
+    }
+
+    const markdownGrammarInfo = this._resolveMarkdownGrammar();
+    if (!markdownGrammarInfo) return false;
+
+    await this._ensureOnigWasmLoaded();
+
+    const theme = this._createTextMateTheme(themeId);
+    this._tmRegistry = new Registry({
+      onigLib: Promise.resolve({
+        createOnigScanner: (patterns: string[]) => new OnigScanner(patterns),
+        createOnigString: (s: string) => new OnigString(s),
+      }),
+      theme,
+      loadGrammar: async (scopeName: string): Promise<IRawGrammar | null> => {
+        const grammarPath = this._tmScopeToPath.get(scopeName);
+        if (!grammarPath || !fs.existsSync(grammarPath)) return null;
+        const raw = fs.readFileSync(grammarPath, 'utf8');
+        return parseRawGrammar(raw, grammarPath);
+      },
+    });
+
+    this._tmGrammar = await this._tmRegistry.loadGrammar(markdownGrammarInfo.scopeName);
+    this._tmGrammarScopeName = markdownGrammarInfo.scopeName;
+    this._tmThemeId = themeId;
+    return !!this._tmGrammar;
+  }
+
+  private async _ensureOnigWasmLoaded(): Promise<void> {
+    if (!this._tmOnigReadyPromise) {
+      this._tmOnigReadyPromise = (async () => {
+        const onigWasmPath = require.resolve('vscode-oniguruma/release/onig.wasm');
+        const wasmFile = fs.readFileSync(onigWasmPath);
+        const wasmBytes = wasmFile.buffer.slice(
+          wasmFile.byteOffset,
+          wasmFile.byteOffset + wasmFile.byteLength
+        );
+        await loadWASM(wasmBytes);
+      })();
+    }
+    await this._tmOnigReadyPromise;
+  }
+
+  private _resolveMarkdownGrammar(): { scopeName: string; grammarPath: string } | null {
+    this._tmScopeToPath = this._buildScopeToGrammarPathMap();
+    const markdownExt = vscode.extensions.getExtension('vscode.markdown-language-features');
+    if (markdownExt) {
+      const grammars = markdownExt.packageJSON?.contributes?.grammars;
+      if (Array.isArray(grammars)) {
+        const mdGrammar = grammars.find((g: any) =>
+          g?.language === 'markdown' || String(g?.scopeName ?? '').toLowerCase().includes('markdown')
+        );
+        if (mdGrammar?.scopeName && mdGrammar?.path) {
+          const grammarPath = path.join(markdownExt.extensionUri.fsPath, mdGrammar.path);
+          this._tmScopeToPath.set(mdGrammar.scopeName, grammarPath);
+          return { scopeName: mdGrammar.scopeName, grammarPath };
+        }
+      }
+    }
+
+    for (const [scopeName, grammarPath] of this._tmScopeToPath.entries()) {
+      if (scopeName.toLowerCase().includes('markdown')) {
+        return { scopeName, grammarPath };
+      }
+    }
+
+    return null;
+  }
+
+  private _buildScopeToGrammarPathMap(): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const ext of vscode.extensions.all) {
+      const grammars = ext.packageJSON?.contributes?.grammars;
+      if (!Array.isArray(grammars)) continue;
+      for (const grammar of grammars) {
+        const scopeName = grammar?.scopeName;
+        const grammarPath = grammar?.path;
+        if (!scopeName || !grammarPath) continue;
+        map.set(scopeName, path.join(ext.extensionUri.fsPath, grammarPath));
+      }
+    }
+    return map;
   }
 
   private _resolveSourceTokenThemeVars(): Record<string, string> {
@@ -362,6 +603,32 @@ export class PreviewPanel {
     return Array.isArray(rules) ? rules : [];
   }
 
+  private _createTextMateTheme(themeId: string): IRawTheme {
+    const themePath = this._resolveThemeFilePath(themeId);
+    const tokenRules = themePath ? this._readThemeTokenRules(themePath) : [];
+    const customRules = this._readCustomizedTokenRules();
+    const allRules = [...tokenRules, ...customRules];
+
+    const settings = allRules
+      .filter(rule => !!rule && !!rule.settings)
+      .map(rule => ({
+        scope: rule.scope,
+        settings: {
+          fontStyle: typeof rule.settings?.fontStyle === 'string' ? rule.settings.fontStyle : undefined,
+          foreground: typeof rule.settings?.foreground === 'string' ? rule.settings.foreground : undefined,
+          background: typeof rule.settings?.background === 'string' ? rule.settings.background : undefined,
+          fontFamily: typeof rule.settings?.fontFamily === 'string' ? rule.settings.fontFamily : undefined,
+          fontSize: typeof rule.settings?.fontSize === 'number' ? rule.settings.fontSize : undefined,
+          lineHeight: typeof rule.settings?.lineHeight === 'number' ? rule.settings.lineHeight : undefined,
+        },
+      }));
+
+    return {
+      name: themeId || 'Markdown Twin Theme',
+      settings,
+    };
+  }
+
   private _pickTokenForeground(
     tokenRules: Array<{ scope?: string | string[]; settings?: any }>,
     patterns: string[]
@@ -392,7 +659,6 @@ export class PreviewPanel {
   }
 
   public dispose() {
-    vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', false);
     const uriStr = this._editor.document.uri.toString();
     const panelKey = `${uriStr}@${this.langCode}`;
     PreviewPanel.allPanels.delete(panelKey);
@@ -400,6 +666,13 @@ export class PreviewPanel {
     if (PreviewPanel.currentPanel === this) {
       const remaining = Array.from(PreviewPanel.allPanels.values());
       PreviewPanel.currentPanel = remaining.length > 0 ? remaining[remaining.length - 1] : undefined;
+      if (PreviewPanel.currentPanel) {
+        PreviewPanel.currentPanel._syncShowingSourceContext();
+      } else {
+        vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', false);
+      }
+    } else if (PreviewPanel.allPanels.size === 0) {
+      vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', false);
     }
 
     if (PreviewPanel.allPanels.size === 0) {
@@ -428,7 +701,7 @@ export class PreviewPanel {
     const isSource = this._viewMode === 'source';
 
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="${isSource ? 'mt-source-mode' : ''}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -436,7 +709,7 @@ export class PreviewPanel {
     <link rel="stylesheet" href="${markdownCssUri}">
     <link rel="stylesheet" href="${twinCssUri}">
 </head>
-<body>
+<body class="${isSource ? 'mt-source-mode' : ''}">
     <!-- プレビュー表示用コンテナ -->
     <div id="preview-container" style="display: ${isPreview ? 'block' : 'none'};">${renderedHtml}</div>
 
@@ -452,6 +725,15 @@ export class PreviewPanel {
         let scrollTimeout;
         const initialSourceLineCount = ${sourceLineCount};
         const initialSourceTokenThemeVars = ${JSON.stringify(sourceTokenThemeVars)};
+        const initialViewMode = '${isSource ? 'source' : 'preview'}';
+
+        function applyViewModeLayout(mode) {
+            const root = document.documentElement;
+            const body = document.body;
+            const isSourceMode = mode === 'source';
+            root.classList.toggle('mt-source-mode', isSourceMode);
+            body.classList.toggle('mt-source-mode', isSourceMode);
+        }
 
         // HTMLタグを壊さずに改行で安全に分割するパーサ関数
         function splitHtmlIntoLines(html) {
@@ -598,6 +880,7 @@ export class PreviewPanel {
 
         // 初期状態で一度レンダリングして高さを同期 (要素存在チェックとtry-catchで極めて安全に)
         try {
+            applyViewModeLayout(initialViewMode);
             applySourceTokenThemeVars(initialSourceTokenThemeVars);
             const sourceCodeEl = document.getElementById('source-code');
             if (sourceCodeEl) {
@@ -622,6 +905,7 @@ export class PreviewPanel {
             } else if (message.type === 'setViewMode') {
                 const previewEl = document.getElementById('preview-container');
                 const sourceEl = document.getElementById('source-container');
+                applyViewModeLayout(message.mode);
                 if (message.mode === 'source') {
                     previewEl.style.display = 'none';
                     sourceEl.style.display = 'flex';

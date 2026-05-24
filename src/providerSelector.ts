@@ -157,7 +157,21 @@ export class ProviderSelector {
 
     await config.update('targetLanguage', selected.lang, vscode.ConfigurationTarget.Global);
     const code = getLanguageCodeFromLabel(selected.lang);
-    vscode.commands.executeCommand('setContext', 'markdownTwin.targetLang', code);
+    await vscode.commands.executeCommand('setContext', 'markdownTwin.targetLang', code);
+    PreviewPanel.updateFlagIcon(code);
+
+    if (this.translationManager.isActive()) {
+      const activeUri = PreviewPanel.currentPanel?.editorDocumentUri;
+      const doc = activeUri && vscode.workspace.textDocuments.find(
+        d => d.uri.toString() === activeUri.toString()
+      );
+      if (doc) {
+        this.translationManager.clearAllCache();
+        await this.translationManager.startTranslation(doc);
+      }
+    } else {
+      this.statusBar.showOffline();
+    }
 
     return selected.lang;
   }

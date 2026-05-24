@@ -85,6 +85,13 @@
   --mt-scroll-beyond-last-line: 22px;
 }
 
+html.mt-source-mode,
+body.mt-source-mode {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
 #line-numbers {
   padding: 8px 16px var(--mt-scroll-beyond-last-line) 0;
   text-align: right;
