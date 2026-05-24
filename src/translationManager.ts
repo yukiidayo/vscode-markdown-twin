@@ -341,7 +341,14 @@ export class TranslationManager implements vscode.Disposable {
 
   // ファイルが閉じられたときに、メモリを完全にクリーンアップして解放
   closeDocument(uri: vscode.Uri): void {
-    const prefix = uri.toString() + '@';
+    const uriStr = uri.toString();
+    const timer = this.debounceTimers.get(uriStr);
+    if (timer) {
+      clearTimeout(timer);
+      this.debounceTimers.delete(uriStr);
+    }
+
+    const prefix = uriStr + '@';
     let count = 0;
     for (const key of this.cache.keys()) {
       if (key.startsWith(prefix)) {
