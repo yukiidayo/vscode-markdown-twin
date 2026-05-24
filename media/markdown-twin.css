@@ -72,6 +72,8 @@
    ========================================================================== */
 
 #source-container {
+  display: flex;
+  flex-direction: row;
   padding: 0;
   margin: 0;
   width: 100%;
@@ -81,20 +83,33 @@
   overflow: auto;
 }
 
+#line-numbers {
+  padding: 8px 16px 20px 0;
+  text-align: right;
+  color: var(--vscode-editorLineNumber-foreground, #858585);
+  font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
+  font-size: var(--vscode-editor-font-size, 14px);
+  line-height: var(--vscode-editor-line-height, 1.5);
+  user-select: none;
+  min-width: 32px;
+  opacity: 0.8;
+}
+
 pre.language-markdown {
+  flex: 1;
   background-color: transparent;
   color: var(--vscode-editor-foreground, #d4d4d4);
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
   font-size: var(--vscode-editor-font-size, 14px);
   font-weight: var(--vscode-editor-font-weight, normal);
   line-height: var(--vscode-editor-line-height, 1.5);
-  padding: 8px 14px 20px 48px; /* Top padding, right padding, bottom padding, left gutter padding */
+  padding: 8px 14px 20px 14px;
   margin: 0;
   border-radius: 0;
   border: none;
   overflow: visible;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+  white-space: pre; /* Force no wrap to keep line numbers aligned */
+  word-wrap: normal;
   tab-size: var(--vscode-editor-tab-size, 4);
 }
 

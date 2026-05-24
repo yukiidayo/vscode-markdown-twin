@@ -283,7 +283,8 @@ export class PreviewPanel {
 
     <!-- ソースコード表示用コンテナ -->
     <div id="source-container" style="display: ${isSource ? 'block' : 'none'};">
-        <pre class="language-markdown"><code class="language-markdown">${highlightedSource}</code></pre>
+        <div id="line-numbers"></div>
+        <pre class="language-markdown"><code class="language-markdown" id="source-code">${highlightedSource}</code></pre>
     </div>
 
     <script>
@@ -291,13 +292,30 @@ export class PreviewPanel {
         let isSyncingScroll = false;
         let scrollTimeout;
 
+        function updateLineNumbers() {
+            const codeEl = document.getElementById('source-code');
+            const lineNumbersEl = document.getElementById('line-numbers');
+            if (!codeEl || !lineNumbersEl) return;
+            
+            const text = codeEl.textContent || '';
+            const lines = text.split('\\n').length;
+            let html = '';
+            for (let i = 1; i <= lines; i++) {
+                html += '<div class="line-number">' + i + '</div>';
+            }
+            lineNumbersEl.innerHTML = html;
+        }
+
+        updateLineNumbers();
+
         window.addEventListener('message', event => {
             const message = event.data;
             if (message.type === 'update') {
                 document.getElementById('preview-container').innerHTML = message.html;
-                const codeEl = document.getElementById('source-container').querySelector('code');
+                const codeEl = document.getElementById('source-code');
                 if (codeEl) {
                     codeEl.innerHTML = message.sourceHtml;
+                    updateLineNumbers();
                 }
             } else if (message.type === 'setViewMode') {
                 const previewEl = document.getElementById('preview-container');
