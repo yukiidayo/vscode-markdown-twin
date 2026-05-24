@@ -701,7 +701,7 @@ export class PreviewPanel {
     const isSource = this._viewMode === 'source';
 
     return `<!DOCTYPE html>
-<html lang="en" class="${isSource ? 'mt-source-mode' : ''}">
+<html lang="en" class="${isSource ? 'mt-source-mode' : 'mt-preview-mode'}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -709,7 +709,7 @@ export class PreviewPanel {
     <link rel="stylesheet" href="${markdownCssUri}">
     <link rel="stylesheet" href="${twinCssUri}">
 </head>
-<body class="${isSource ? 'mt-source-mode' : ''}">
+<body class="${isSource ? 'mt-source-mode' : 'mt-preview-mode'}">
     <!-- プレビュー表示用コンテナ -->
     <div id="preview-container" style="display: ${isPreview ? 'block' : 'none'};">${renderedHtml}</div>
 
@@ -733,6 +733,8 @@ export class PreviewPanel {
             const isSourceMode = mode === 'source';
             root.classList.toggle('mt-source-mode', isSourceMode);
             body.classList.toggle('mt-source-mode', isSourceMode);
+            root.classList.toggle('mt-preview-mode', !isSourceMode);
+            body.classList.toggle('mt-preview-mode', !isSourceMode);
         }
 
         // HTMLタグを壊さずに改行で安全に分割するパーサ関数

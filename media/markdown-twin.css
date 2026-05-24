@@ -92,6 +92,12 @@ body.mt-source-mode {
   overflow: hidden !important;
 }
 
+body.mt-preview-mode::before {
+  content: '';
+  display: block;
+  height: 22px;
+}
+
 #line-numbers {
   padding: 8px 16px var(--mt-scroll-beyond-last-line) 0;
   text-align: right;
