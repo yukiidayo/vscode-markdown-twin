@@ -5,6 +5,7 @@ import {
   ProviderId,
   PROVIDER_DISPLAY_NAMES,
   normalizeProviderId,
+  providerRequiresApiKey,
 } from './providers/ITranslationProvider';
 import { DeeplProvider } from './providers/deeplProvider';
 import { PapagoProvider } from './providers/papagoProvider';
@@ -141,8 +142,7 @@ export class TranslationManager implements vscode.Disposable {
     );
     const targetLangs = panelsForDoc.length > 0 ? panelsForDoc.map(p => p.langCode) : [defaultTargetLang];
 
-    const requiresKey = ['deepl', 'papago', 'microsoft', 'google-cloud'].includes(providerId);
-    if (requiresKey) {
+    if (providerRequiresApiKey(providerId)) {
       const key = await this.apiKeyManager.getKey(providerId);
       if (!key) {
         const displayName = PROVIDER_DISPLAY_NAMES[providerId] ?? providerId;

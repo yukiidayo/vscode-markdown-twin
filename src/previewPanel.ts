@@ -10,6 +10,7 @@ import { t } from './i18n';
 import { isCursor } from './utils';
 import { markdownTwinWebviewPlugin } from './preview/markdownTwinWebviewPlugin';
 import { SourceThemeResolver } from './preview/sourceThemeResolver';
+import { escapeHtml } from './utils/html';
 
 export class PreviewPanel {
   public static currentPanel: PreviewPanel | undefined;
@@ -287,7 +288,7 @@ export class PreviewPanel {
 
     // source?????????Markdown??????
     const sourceMarkdown = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
-    let highlightedSource = this._escapeHtml(sourceMarkdown);
+    let highlightedSource = escapeHtml(sourceMarkdown);
     
     const sourceLineCount = sourceMarkdown.split(/\r?\n/).length;
     const editorOptions = this._editor.options as { lineHeight?: number };
@@ -338,7 +339,7 @@ export class PreviewPanel {
     const ready = await this._ensureTextMateReady();
     if (!ready || !this._tmGrammar || !this._tmRegistry) {
       // ??/???????????????????????????????
-      return this._escapeHtml(sourceMarkdown);
+      return escapeHtml(sourceMarkdown);
     }
 
     const lines = sourceMarkdown.split(/\r?\n/);
@@ -371,7 +372,7 @@ export class PreviewPanel {
       if (!raw) continue;
 
       const style = this._styleFromTokenMetadata(metadata, colorMap);
-      const escaped = this._escapeHtml(raw);
+      const escaped = escapeHtml(raw);
       html += style ? `<span style="${style}">${escaped}</span>` : escaped;
     }
     return html;
@@ -400,14 +401,6 @@ export class PreviewPanel {
 
   private _metadataForeground(metadata: number): number {
     return (metadata >>> 15) & 0x1ff;
-  }
-
-  private _escapeHtml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
   }
 
   private async _ensureTextMateReady(): Promise<boolean> {

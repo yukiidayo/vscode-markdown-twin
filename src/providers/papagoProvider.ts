@@ -1,4 +1,5 @@
-import { ITranslationProvider } from './ITranslationProvider';
+﻿import { ITranslationProvider } from './ITranslationProvider';
+import { readResponseErrorMessage } from './httpError';
 
 export class PapagoProvider implements ITranslationProvider {
   readonly id = 'papago';
@@ -8,7 +9,7 @@ export class PapagoProvider implements ITranslationProvider {
   private clientId: string;
   private clientSecret: string;
 
-  // APIキーは "clientId:clientSecret" の形式で1文字列として保存
+  // APIキーは "clientId:clientSecret" 形式で受け取り、内部で分割する。
   constructor(apiKey: string) {
     const [id, secret] = apiKey.split(':');
     this.clientId = id ?? '';
@@ -18,7 +19,7 @@ export class PapagoProvider implements ITranslationProvider {
   async translate(texts: string[], sourceLang: string, targetLang: string): Promise<string[]> {
     if (texts.length === 0) return [];
 
-    // Papagoは1リクエスト1テキストのみ対応 → Promise.all で並列実行（エラーはそのまま伝播）
+    // Papagoは1リクエスト1テキストなので、Promise.allで並列化する。
     return Promise.all(
       texts.map(text => this.translateOne(text, sourceLang, targetLang))
     );
@@ -40,8 +41,9 @@ export class PapagoProvider implements ITranslationProvider {
     });
 
     if (!response.ok) {
-      const errorJson: any = await response.json().catch(() => ({}));
-      const errorMsg = errorJson?.error?.message ?? response.statusText;
+      const errorMsg = await readResponseErrorMessage(response, [
+        payload => payload?.error?.message,
+      ]);
       throw new Error(`Papago translation failed (${response.status}): ${errorMsg}`);
     }
 

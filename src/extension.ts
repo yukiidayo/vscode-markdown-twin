@@ -3,7 +3,7 @@ import { TranslationManager } from './translationManager';
 import { StatusBar } from './statusBar';
 import { ApiKeyManager } from './apiKeyManager';
 import { ProviderSelector, PROVIDER_DEFS } from './providerSelector';
-import { normalizeProviderId } from './providers/ITranslationProvider';
+import { normalizeProviderId, providerRequiresApiKey } from './providers/ITranslationProvider';
 import {
   SUPPORTED_LANGUAGES,
   getTargetLanguageCode,
@@ -13,6 +13,7 @@ import {
 import { PreviewPanel } from './previewPanel';
 import { t } from './i18n';
 import { isCursor } from './utils';
+import { restartTranslationForCurrentPreview } from './retranslation';
 
 let translationManager: TranslationManager;
 
@@ -95,14 +96,7 @@ export async function activate(context: vscode.ExtensionContext) {
         PreviewPanel.updateFlagIcon(code);
 
         if (translationManager.isActive()) {
-          const activeUri = PreviewPanel.currentPanel?.editorDocumentUri;
-          const doc = activeUri && vscode.workspace.textDocuments.find(
-            d => d.uri.toString() === activeUri.toString()
-          );
-          if (doc) {
-            translationManager.clearAllCache();
-            await translationManager.startTranslation(doc);
-          }
+          await restartTranslationForCurrentPreview(translationManager, { clearCache: true });
         } else {
           statusBar.showOffline();
         }
@@ -157,9 +151,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     const providerId = normalizeProviderId(provider);
-    // ??????????????????????ID????
-    const requiresKey = ['deepl', 'papago', 'microsoft', 'google-cloud'].includes(providerId);
-    if (requiresKey) {
+    if (providerRequiresApiKey(providerId)) {
       const key = await apiKeyManager.getKey(providerId);
       if (!key) {
         await apiKeyManager.prompt(providerId);

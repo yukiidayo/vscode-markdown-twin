@@ -2,6 +2,7 @@
 import { TranslationManager } from '../translationManager';
 import { EXCLUDED_TOKEN_TYPES } from '../languageDetector';
 import { t } from '../i18n';
+import { escapeHtml } from '../utils/html';
 
 interface PluginOptions {
   translationManager: TranslationManager;
@@ -65,12 +66,4 @@ export function markdownTwinWebviewPlugin(md: any, options: PluginOptions): any 
   });
 
   return md;
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

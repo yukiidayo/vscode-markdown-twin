@@ -31,6 +31,13 @@ const PROVIDER_ALIAS_TO_ID: Record<string, ProviderId> = {
   papago: 'papago',
 };
 
+const API_KEY_REQUIRED_PROVIDERS: ReadonlySet<ProviderId> = new Set([
+  'google-cloud',
+  'microsoft',
+  'deepl',
+  'papago',
+]);
+
 export function normalizeProviderId(rawValue: string | undefined): ProviderId {
   if (!rawValue) {
     return DEFAULT_PROVIDER_ID;
@@ -38,4 +45,8 @@ export function normalizeProviderId(rawValue: string | undefined): ProviderId {
 
   const normalized = rawValue.trim().toLowerCase();
   return PROVIDER_ALIAS_TO_ID[normalized] ?? DEFAULT_PROVIDER_ID;
+}
+
+export function providerRequiresApiKey(providerId: ProviderId): boolean {
+  return API_KEY_REQUIRED_PROVIDERS.has(providerId);
 }

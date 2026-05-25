@@ -6,6 +6,7 @@ import {
   ProviderId,
   PROVIDER_DISPLAY_NAMES,
   normalizeProviderId,
+  providerRequiresApiKey,
 } from './providers/ITranslationProvider';
 import {
   SUPPORTED_LANGUAGES,
@@ -14,6 +15,7 @@ import {
 } from './languages';
 import { PreviewPanel } from './previewPanel';
 import { t } from './i18n';
+import { restartTranslationForCurrentPreview } from './retranslation';
 
 interface ProviderItem extends vscode.QuickPickItem {
   id: ProviderId;
@@ -149,14 +151,7 @@ export class ProviderSelector {
     PreviewPanel.updateFlagIcon(selected.code);
 
     if (this.translationManager.isActive()) {
-      const activeUri = PreviewPanel.currentPanel?.editorDocumentUri;
-      const doc = activeUri && vscode.workspace.textDocuments.find(
-        d => d.uri.toString() === activeUri.toString()
-      );
-      if (doc) {
-        this.translationManager.clearAllCache();
-        await this.translationManager.startTranslation(doc);
-      }
+      await restartTranslationForCurrentPreview(this.translationManager, { clearCache: true });
     } else {
       this.statusBar.showOffline();
     }
@@ -214,7 +209,7 @@ export class ProviderSelector {
     const config = vscode.workspace.getConfiguration('markdownTwin');
     await config.update('provider', selected.id, vscode.ConfigurationTarget.Global);
 
-    if (selected.requiresKey) {
+    if (providerRequiresApiKey(selected.id)) {
       const existing = await this.apiKeyManager.getKey(selected.id);
       if (!existing) {
         await this.apiKeyManager.prompt(selected.id);
@@ -222,14 +217,10 @@ export class ProviderSelector {
     }
 
     if (this.translationManager.isActive()) {
-      const activeUri = PreviewPanel.currentPanel?.editorDocumentUri;
-      const doc = activeUri && vscode.workspace.textDocuments.find(
-        d => d.uri.toString() === activeUri.toString()
-      );
-      if (doc) {
-        this.translationManager.clearAllCache();
-        await this.translationManager.startTranslation(doc, selected.id);
-      }
+      await restartTranslationForCurrentPreview(this.translationManager, {
+        clearCache: true,
+        overrideProvider: selected.id,
+      });
     } else {
       this.statusBar.setActiveProvider(selected.id);
       this.statusBar.showOffline();

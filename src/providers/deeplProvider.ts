@@ -1,4 +1,5 @@
-import { ITranslationProvider } from './ITranslationProvider';
+﻿import { ITranslationProvider } from './ITranslationProvider';
+import { readResponseErrorMessage } from './httpError';
 
 export class DeeplProvider implements ITranslationProvider {
   readonly id = 'deepl';
@@ -10,7 +11,7 @@ export class DeeplProvider implements ITranslationProvider {
   async translate(texts: string[], sourceLang: string, targetLang: string): Promise<string[]> {
     if (texts.length === 0) return [];
 
-    // キーが ':fx' で終わる場合はFree tierエンドポイント
+    // DeepL Free APIキーは ":fx" で終わる。
     const endpoint = this.apiKey.endsWith(':fx')
       ? 'https://api-free.deepl.com/v2/translate'
       : 'https://api.deepl.com/v2/translate';
@@ -18,7 +19,7 @@ export class DeeplProvider implements ITranslationProvider {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `DeepL-Auth-Key ${this.apiKey}`,
+        Authorization: `DeepL-Auth-Key ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -30,8 +31,9 @@ export class DeeplProvider implements ITranslationProvider {
     });
 
     if (!response.ok) {
-      const errorJson: any = await response.json().catch(() => ({}));
-      const errorMsg = errorJson?.message ?? response.statusText;
+      const errorMsg = await readResponseErrorMessage(response, [
+        payload => payload?.message,
+      ]);
       throw new Error(`DeepL translation failed (${response.status}): ${errorMsg}`);
     }
 

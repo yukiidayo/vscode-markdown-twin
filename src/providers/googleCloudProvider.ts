@@ -1,4 +1,5 @@
 import { ITranslationProvider } from './ITranslationProvider';
+import { readResponseErrorMessage } from './httpError';
 
 export class GoogleCloudProvider implements ITranslationProvider {
   readonly id = 'google-cloud';
@@ -29,8 +30,9 @@ export class GoogleCloudProvider implements ITranslationProvider {
     });
 
     if (!response.ok) {
-      const errorJson: any = await response.json().catch(() => ({}));
-      const errorMsg = errorJson?.error?.message || response.statusText;
+      const errorMsg = await readResponseErrorMessage(response, [
+        payload => payload?.error?.message,
+      ]);
       throw new Error(`Google Cloud Translation failed: ${errorMsg}`);
     }
 

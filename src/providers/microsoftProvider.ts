@@ -1,5 +1,6 @@
 import { ITranslationProvider } from './ITranslationProvider';
 import * as vscode from 'vscode';
+import { readResponseErrorMessage } from './httpError';
 
 export class AzureRegionError extends Error {
   readonly region: string;
@@ -45,8 +46,9 @@ export class MicrosoftProvider implements ITranslationProvider {
     );
 
     if (!response.ok) {
-      const errorJson: any = await response.json().catch(() => ({}));
-      const errorMsg = errorJson?.error?.message ?? response.statusText;
+      const errorMsg = await readResponseErrorMessage(response, [
+        payload => payload?.error?.message,
+      ]);
       if (response.status === 401) {
         const lower = errorMsg.toLowerCase();
         if (lower.includes('endpoint') || lower.includes('regional')) {
