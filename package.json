@@ -177,6 +177,14 @@
         "command": "markdownTwin.openPreviewFromSource",
         "title": "%markdownTwin.commands.openPreviewFromSource%",
         "icon": "$(eye)"
+      },
+      {
+        "command": "markdownTwin.copyFromPreviewContext",
+        "title": "%markdownTwin.commands.copyFromPreviewContext%"
+      },
+      {
+        "command": "markdownTwin.retranslateFromPreviewContext",
+        "title": "%markdownTwin.commands.retranslateFromPreviewContext%"
       }
     ],
     "menus": {
@@ -275,6 +283,16 @@
           "command": "markdownTwin.openPreviewFromSource",
           "when": "activeWebviewPanelId == 'markdownTwinPreview' && markdownTwin.showingSource",
           "group": "navigation@4"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "markdownTwin.copyFromPreviewContext",
+          "when": "webviewId == 'markdownTwinPreview'"
+        },
+        {
+          "command": "markdownTwin.retranslateFromPreviewContext",
+          "when": "webviewId == 'markdownTwinPreview'"
         }
       ]
     },

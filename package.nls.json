@@ -11,6 +11,8 @@
   "markdownTwin.commands.selectProvider": "Markdown Twin: Select Translation Provider",
   "markdownTwin.commands.setApiKey": "Markdown Twin: Set API Key",
   "markdownTwin.commands.copyTranslatedMarkdown": "Markdown Twin: Copy Translated Markdown",
+  "markdownTwin.commands.copyFromPreviewContext": "Copy",
+  "markdownTwin.commands.retranslateFromPreviewContext": "Retranslate",
   "markdownTwin.commands.exportTranslatedMarkdown": "Markdown Twin: Export Translated Markdown",
   "markdownTwin.commands.openTranslatedSource": "Markdown Twin: Show Translated Source",
   "markdownTwin.commands.openPreviewFromSource": "Markdown Twin: Show Translated Preview",

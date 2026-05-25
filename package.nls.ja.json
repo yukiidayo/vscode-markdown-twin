@@ -11,6 +11,8 @@
   "markdownTwin.commands.selectProvider": "Markdown Twin: 翻訳プロバイダーを選択",
   "markdownTwin.commands.setApiKey": "Markdown Twin: APIキーを設定",
   "markdownTwin.commands.copyTranslatedMarkdown": "Markdown Twin: 翻訳済みMarkdownをコピー",
+  "markdownTwin.commands.copyFromPreviewContext": "コピー",
+  "markdownTwin.commands.retranslateFromPreviewContext": "再翻訳",
   "markdownTwin.commands.exportTranslatedMarkdown": "Markdown Twin: 翻訳済みMarkdownをエクスポート",
   "markdownTwin.commands.openTranslatedSource": "Markdown Twin: 翻訳済みソースを表示",
   "markdownTwin.commands.openPreviewFromSource": "Markdown Twin: 翻訳プレビューを表示",

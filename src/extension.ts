@@ -13,7 +13,7 @@ import {
 import { PreviewPanel } from './previewPanel';
 import { t } from './i18n';
 import { isCursor } from './utils';
-import { rerunActivePreviewTranslation } from './previewTranslation';
+import { retranslateActivePreview, retranslatePreviewDocument } from './previewActions';
 import { runTranslationForDocument } from './translationRunner';
 
 let translationManager: TranslationManager;
@@ -98,7 +98,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         if (translationManager.isActive()) {
-          await rerunActivePreviewTranslation(translationManager, { clearCache: true });
+          await retranslateActivePreview(translationManager, { clearCache: true });
         } else {
           statusBar.showOffline();
         }
@@ -132,13 +132,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
     if (panelExists) {
       // 既存パネルを再利用しつつ、翻訳状態をアクティブに保つ
-      await vscode.commands.executeCommand('setContext', 'markdownTwin.translationActive', true);
-
-      if (!isCursor() && canCreatePanelFromActiveEditor) {
-        await PreviewPanel.createOrShow(context.extensionUri, translationManager, document);
-      }
-
-      await runTranslationForDocument(translationManager, document);
+      await retranslatePreviewDocument({
+        extensionUri: context.extensionUri,
+        translationManager,
+        document,
+        options: {
+          revealPreview: !isCursor() && canCreatePanelFromActiveEditor,
+        },
+      });
       return;
     }
 
@@ -275,6 +276,18 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand('markdownTwin.copyFromPreviewContext', async () => {
+      await vscode.commands.executeCommand('editor.action.clipboardCopyAction');
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('markdownTwin.retranslateFromPreviewContext', async () => {
+      await retranslateActivePreview(translationManager, { clearCache: true });
+    })
+  );
+
+  context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(async editor => {
       if (!editor || editor.document.languageId !== 'markdown') return;
 
@@ -290,7 +303,10 @@ export async function activate(context: vscode.ExtensionContext) {
         PreviewPanel.currentPanel = preferredPanel;
 
         if (translationManager.isActive()) {
-          await runTranslationForDocument(translationManager, editor.document);
+          await retranslatePreviewDocument({
+            translationManager,
+            document: editor.document,
+          });
         }
       }
     })

@@ -108,6 +108,27 @@ export const WEBVIEW_SCRIPT_SHARED = `
             banner.style.display = 'block';
             banner.textContent = text;
         }
+
+        function bindFoldRailHoverState() {
+            const rail = document.getElementById('line-numbers');
+            if (!rail || rail.dataset.mtFoldRailBound === '1') return;
+            rail.dataset.mtFoldRailBound = '1';
+
+            rail.addEventListener('mouseover', (event) => {
+                const target = event.target;
+                if (!(target instanceof Element)) return;
+                if (!target.closest('.line-number-fold-slot')) return;
+                rail.classList.add('mt-fold-rail-hover');
+            });
+
+            rail.addEventListener('mouseout', (event) => {
+                const to = event.relatedTarget;
+                if (to instanceof Element && rail.contains(to) && to.closest('.line-number-fold-slot')) {
+                    return;
+                }
+                rail.classList.remove('mt-fold-rail-hover');
+            });
+        }
 `;
 
 export const WEBVIEW_SCRIPT_FOLDING = `
@@ -217,6 +238,13 @@ export const WEBVIEW_SCRIPT_FOLDING = `
             return '<button class="fold-toggle' + stateClass + '" type="button" data-fold-start="' + lineNumber + '" aria-expanded="' + (!collapsed) + '" title="' + title + '"></button>';
         }
 
+        function resolveFoldState(lineNumber) {
+            if (!foldRangeByStart.has(lineNumber)) {
+                return 'none';
+            }
+            return collapsedFoldStarts.has(lineNumber) ? 'collapsed' : 'expanded';
+        }
+
         function setFoldCollapsed(startLine, collapsed) {
             if (collapsed) {
                 collapsedFoldStarts.add(startLine);
@@ -234,14 +262,16 @@ export const WEBVIEW_SCRIPT_FOLDING = `
                 const hidden = isLineHiddenByFold(lineNumber);
                 lineEl.style.display = hidden ? 'none' : '';
 
-                const isCollapsedStart = foldRangeByStart.has(lineNumber) && collapsedFoldStarts.has(lineNumber);
-                lineEl.classList.toggle('fold-collapsed-start', isCollapsedStart);
+                const foldState = resolveFoldState(lineNumber);
+                lineEl.dataset.foldState = foldState;
             }
 
             for (const numEl of lineNumbers) {
                 const lineNumber = parseInt(numEl.getAttribute('data-line') || '-1', 10);
                 const hidden = isLineHiddenByFold(lineNumber);
                 numEl.style.display = hidden ? 'none' : '';
+                const foldState = resolveFoldState(lineNumber);
+                numEl.dataset.foldState = foldState;
 
                 const toggleEl = numEl.querySelector('.fold-toggle[data-fold-start]');
                 if (toggleEl) {
@@ -272,7 +302,7 @@ export const WEBVIEW_SCRIPT_FOLDING = `
 
             const ellipsisButtons = document.querySelectorAll('#source-code .fold-ellipsis[data-fold-open]');
             for (const ellipsis of ellipsisButtons) {
-                ellipsis.addEventListener('click', (event) => {
+                const openFold = (event) => {
                     event.preventDefault();
                     event.stopPropagation();
                     const startLine = parseInt(ellipsis.getAttribute('data-fold-open') || '-1', 10);
@@ -280,6 +310,12 @@ export const WEBVIEW_SCRIPT_FOLDING = `
                     if (!foldRangeByStart.has(startLine) || !collapsedFoldStarts.has(startLine)) return;
                     setFoldCollapsed(startLine, false);
                     applyFoldStateToDom();
+                };
+
+                ellipsis.addEventListener('click', openFold);
+                ellipsis.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    openFold(event);
                 });
             }
         }
@@ -379,27 +415,25 @@ export const WEBVIEW_SCRIPT_SOURCE_RENDERING = `
             sourceLines.forEach((rawLine, index) => {
                 const highlightedLine = htmlLines[index] || '';
                 const displayLine = highlightedLine.trim() === '' ? '&nbsp;' : highlightedLine;
-                const collapsedStart = foldRangeByStart.has(index) && collapsedFoldStarts.has(index);
+                const foldState = resolveFoldState(index);
                 const hiddenByFold = isLineHiddenByFold(index);
                 const styleAttr = hiddenByFold ? ' style="display:none;"' : '';
                 const classes = ['code-line'];
                 if (isOrderedListLine(rawLine)) {
                     classes.push('ordered-list-line');
                 }
-                if (collapsedStart) {
-                    classes.push('fold-collapsed-start');
-                }
-                const summaryHtml = collapsedStart
-                  ? '<span class="folded-summary" title="Collapsed region">'
-                    + '<span class="code-line-content">' + displayLine + '</span>'
-                    + '<button class="fold-ellipsis" type="button" data-fold-open="' + index + '" title="Expand folded region">...</button>'
+                const summaryHtml = foldRangeByStart.has(index)
+                  ? '<span class="code-line-content">' + displayLine + '</span>'
+                    + '<span class="folded-summary" title="Collapsed region">'
+                    + '<span class="folded-summary-text">' + displayLine + '</span>'
+                    + '<span class="fold-ellipsis" role="button" tabindex="0" data-fold-open="' + index + '" title="Expand folded region" aria-label="Expand folded region">⋯</span>'
                     + '</span>'
                   : '<span class="code-line-content">' + displayLine + '</span>';
 
-                codeHtml += '<div class="' + classes.join(' ') + '" data-line="' + index + '"' + styleAttr + '>'
+                codeHtml += '<div class="' + classes.join(' ') + '" data-line="' + index + '" data-fold-state="' + foldState + '"' + styleAttr + '>'
                   + summaryHtml
                   + '</div>';
-                lineNumHtml += '<div class="line-number" data-line="' + index + '"' + styleAttr + '>'
+                lineNumHtml += '<div class="line-number" data-line="' + index + '" data-fold-state="' + foldState + '"' + styleAttr + '>'
                   + '<span class="line-number-value">' + (index + 1) + '</span>'
                   + '<span class="line-number-fold-slot">' + buildFoldToggleHtml(index) + '</span>'
                   + '</div>';
@@ -407,12 +441,16 @@ export const WEBVIEW_SCRIPT_SOURCE_RENDERING = `
 
             codeEl.innerHTML = codeHtml;
             lineNumbersEl.innerHTML = lineNumHtml;
+            bindFoldRailHoverState();
             bindFoldToggleEvents();
             syncLineHeights();
         }
 `;
 
 export const WEBVIEW_SCRIPT_SYNC = `
+        let latestSourceLines = parseSourceLines(initialSourceText, initialSourceLineCount);
+        let lastInteractedLine = 0;
+
         try {
             applyViewModeLayout(initialViewMode);
             applySourceEditorMetrics(initialSourceLineHeight);
@@ -433,6 +471,7 @@ export const WEBVIEW_SCRIPT_SYNC = `
             const message = event.data;
             if (message.type === 'update') {
                 document.getElementById('preview-container').innerHTML = message.html;
+                latestSourceLines = parseSourceLines(message.sourceText, message.sourceLineCount);
                 applySourceEditorMetrics(message.sourceLineHeight);
                 applyResolvedFoldBackground();
                 applySourceTokenThemeVars(message.sourceTokenThemeVars);
@@ -484,6 +523,18 @@ export const WEBVIEW_SCRIPT_SYNC = `
                 }
             });
         }
+
+        const previewContainerEl = document.getElementById('preview-container');
+        if (previewContainerEl) {
+            previewContainerEl.addEventListener('mousedown', updateLastInteractedLineFromEvent, true);
+        }
+
+        if (sourceContainerEl) {
+            sourceContainerEl.addEventListener('mousedown', updateLastInteractedLineFromEvent, true);
+        }
+
+        document.addEventListener('selectionchange', updateLastInteractedLineFromSelection, true);
+        document.addEventListener('copy', handleCopyEvent, true);
 
         function findElementByLine(line) {
             const elements = Array.from(document.querySelectorAll('#preview-container [data-line]'));
@@ -554,6 +605,107 @@ export const WEBVIEW_SCRIPT_SYNC = `
                 }
             }
             return closest;
+        }
+
+        function setLastInteractedLine(line) {
+            if (!Number.isFinite(line) || line < 0) return;
+            lastInteractedLine = Math.floor(line);
+        }
+
+        function findLineFromNode(node) {
+            if (!node) return null;
+            const element = node.nodeType === 1 ? node : node.parentElement;
+            if (!element || !element.closest) return null;
+
+            const lineHost = element.closest('#source-code .code-line[data-line], #line-numbers .line-number[data-line], #preview-container [data-line]');
+            if (!lineHost) return null;
+
+            const line = parseInt(lineHost.getAttribute('data-line') || '-1', 10);
+            return Number.isFinite(line) && line >= 0 ? line : null;
+        }
+
+        function updateLastInteractedLineFromEvent(event) {
+            const line = findLineFromNode(event.target);
+            if (line === null) return;
+            setLastInteractedLine(line);
+        }
+
+        function updateLastInteractedLineFromSelection() {
+            const selection = window.getSelection();
+            if (!selection) return;
+            const line = findLineFromNode(selection.anchorNode) ?? findLineFromNode(selection.focusNode);
+            if (line === null) return;
+            setLastInteractedLine(line);
+        }
+
+        function getCurrentSelectionText() {
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) return null;
+            const range = selection.getRangeAt(0);
+            if (range.collapsed) return null;
+            return selection.toString();
+        }
+
+        function getPreviewLineText(line) {
+            const element = findElementByLine(line);
+            if (!element) return '';
+            return (element.innerText || element.textContent || '').replace(/\\r/g, '');
+        }
+
+        function normalizeLineForSource(line) {
+            if (latestSourceLines.length === 0) return 0;
+            if (!Number.isFinite(line) || line < 0) return 0;
+            const index = Math.floor(line);
+            return Math.min(index, latestSourceLines.length - 1);
+        }
+
+        function resolveFallbackLine() {
+            if (isSourceModeActive()) {
+                const sourceTop = findSourceLineAtTop();
+                if (sourceTop) {
+                    const line = parseInt(sourceTop.getAttribute('data-line') || '-1', 10);
+                    if (Number.isFinite(line) && line >= 0) return line;
+                }
+                return 0;
+            }
+
+            const previewTop = findElementAtViewportTop();
+            if (previewTop) {
+                const line = parseInt(previewTop.getAttribute('data-line') || '-1', 10);
+                if (Number.isFinite(line) && line >= 0) return line;
+            }
+            return 0;
+        }
+
+        function resolveCopyTextWithoutSelection() {
+            const fallbackLine = resolveFallbackLine();
+            const requestedLine = Number.isFinite(lastInteractedLine) ? lastInteractedLine : fallbackLine;
+            const targetLine = requestedLine >= 0 ? requestedLine : fallbackLine;
+            setLastInteractedLine(targetLine);
+
+            if (isSourceModeActive()) {
+                return latestSourceLines[normalizeLineForSource(targetLine)] || '';
+            }
+
+            return getPreviewLineText(targetLine);
+        }
+
+        function handleCopyEvent(event) {
+            updateLastInteractedLineFromSelection();
+
+            const selectedText = getCurrentSelectionText();
+            if (selectedText !== null) {
+                if (event.clipboardData) {
+                    event.preventDefault();
+                    event.clipboardData.setData('text/plain', selectedText);
+                }
+                return;
+            }
+
+            const textToCopy = resolveCopyTextWithoutSelection();
+            if (!event.clipboardData) return;
+            event.preventDefault();
+            event.clipboardData.setData('text/plain', textToCopy);
         }
 
         function isSourceModeActive() {

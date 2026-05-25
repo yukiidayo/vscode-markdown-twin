@@ -54,7 +54,7 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
     <link rel="stylesheet" href="${markdownCssUri}">
     <link rel="stylesheet" href="${twinCssUri}">
 </head>
-<body class="${isSource ? 'mt-source-mode' : 'mt-preview-mode'}">
+<body class="${isSource ? 'mt-source-mode' : 'mt-preview-mode'}" data-vscode-context='{"webviewSection":"markdownTwinContent","preventDefaultContextMenuItems":true}'>
     <div id="mt-topbar">${previewHeaderTitle}</div>
     <div id="preview-container" style="display: ${isPreview ? 'block' : 'none'};">${renderedHtml}</div>
 

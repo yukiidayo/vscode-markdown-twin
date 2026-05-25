@@ -132,118 +132,127 @@ body.mt-source-mode {
 
 #line-numbers {
   padding: 8px 0 var(--mt-scroll-beyond-last-line) 0;
-  text-align: right;
-  color: var(--vscode-editorLineNumber-foreground);
-  font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
-  font-size: var(--vscode-editor-font-size, 14px);
-  user-select: none;
   width: 68px;
   min-width: 68px;
-  opacity: 0.8;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  text-align: right;
+  color: var(--vscode-editorLineNumber-foreground);
+  opacity: 0.8;
+  user-select: none;
+  cursor: default;
+  font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
+  font-size: var(--vscode-editor-font-size, 14px);
 }
 
 .line-number {
   position: relative;
-  box-sizing: border-box;
+  display: block;
   margin: 0;
   padding: 0 26px 0 0;
-  display: block;
+  box-sizing: border-box;
   text-align: right;
   line-height: var(--mt-source-line-height, 19px);
+  cursor: default;
 }
 
 .line-number-value {
   display: inline-block;
+  cursor: default;
 }
 
 .line-number-fold-slot {
   position: absolute;
-  right: 0;
   top: 0;
+  right: 0;
   width: 26px;
   height: var(--mt-source-line-height, 19px);
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: default;
+  pointer-events: auto;
 }
 
 pre.language-markdown {
   flex: 1;
+  margin: 0;
+  padding: 8px 0 var(--mt-scroll-beyond-last-line) 0;
+  border: none;
+  border-radius: 0;
+  box-sizing: border-box;
+  overflow: visible;
   background-color: transparent;
   color: var(--vscode-editor-foreground);
+  cursor: text;
+  tab-size: var(--vscode-editor-tab-size, 4);
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
   font-size: var(--vscode-editor-font-size, 14px);
   font-weight: var(--vscode-editor-font-weight, normal);
   line-height: var(--mt-source-line-height, 19px);
-  padding: 8px 0 var(--mt-scroll-beyond-last-line) 0;
-  margin: 0;
-  border-radius: 0;
-  border: none;
-  overflow: visible;
-  white-space: pre-wrap; /* Enable line wrapping */
-  word-wrap: break-word; /* Wrap long words */
+  white-space: pre-wrap;
+  word-wrap: break-word;
   word-break: break-all;
-  tab-size: var(--vscode-editor-tab-size, 4);
-  box-sizing: border-box;
 }
 
 #source-code {
   display: block;
   width: 100%;
   color: var(--vscode-editor-foreground);
+  cursor: text;
 }
 
 .code-line {
   display: flex;
   align-items: flex-start;
   width: 100%;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  word-break: break-all;
   min-height: var(--mt-source-line-height, 19px);
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  cursor: text;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-all;
 }
 
 .code-line-content {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  cursor: text;
 }
 
 .ordered-list-line .code-line-content {
   padding-left: 8px;
 }
 
+/* Fold rail */
 .fold-toggle {
+  position: relative;
   width: 14px;
   min-width: 14px;
   height: var(--mt-source-line-height, 19px);
-  margin-right: 0;
+  margin: 0;
   padding: 0;
   border: none;
   background: transparent;
   color: var(--vscode-editorGutter-foldingControlForeground, var(--vscode-editorLineNumber-foreground, var(--vscode-editor-foreground)));
-  cursor: pointer;
   line-height: var(--mt-source-line-height, 19px);
   text-align: center;
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
-  position: relative;
+  cursor: pointer;
   opacity: 0;
   transition: opacity 120ms ease;
 }
 
-.line-number-fold-slot:hover .fold-toggle:not(.fold-toggle-spacer),
-#line-numbers:has(.line-number-fold-slot:hover) .fold-toggle:not(.fold-toggle-spacer),
-.line-number .fold-toggle.is-collapsed {
+#line-numbers.mt-fold-rail-hover .fold-toggle:not(.fold-toggle-spacer),
+.line-number[data-fold-state="collapsed"] .fold-toggle:not(.fold-toggle-spacer) {
   opacity: 1;
 }
 
 .fold-toggle:hover {
-  color: var(--vscode-editorGutter-foldingControlForeground, var(--vscode-editorLineNumber-activeForeground, var(--vscode-editor-foreground)));
+  color: var(--vscode-editorLineNumber-activeForeground, var(--vscode-editor-foreground));
 }
 
 .fold-toggle-spacer {
@@ -269,49 +278,68 @@ pre.language-markdown {
   transform: translate(-50%, -80%) rotate(45deg);
 }
 
-.code-line.fold-collapsed-start .folded-summary {
+/* Collapsed row */
+.code-line[data-fold-state="collapsed"] {
+  background-color: var(--mt-fold-bg, var(--vscode-editor-foldBackground, var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.22))));
+}
+
+.line-number[data-fold-state="collapsed"] .line-number-value {
+  opacity: 0.72;
+}
+
+.folded-summary {
   display: inline-flex;
-  flex: 0 1 auto;
+  align-items: center;
+  width: auto;
   max-width: 100%;
   min-width: 0;
-  align-items: center;
-  background-color: var(--mt-fold-bg, var(--vscode-editor-foldBackground, var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.22))));
-  border-radius: 2px;
   padding-right: 4px;
+  box-sizing: border-box;
   overflow: hidden;
   white-space: nowrap;
   word-break: normal;
 }
 
-.code-line.fold-collapsed-start .code-line-content {
-  display: inline-block;
+.code-line[data-fold-state="none"] .folded-summary,
+.code-line[data-fold-state="expanded"] .folded-summary {
+  display: none;
+}
+
+.code-line[data-fold-state="collapsed"] .code-line-content {
+  display: none;
+}
+
+.code-line[data-fold-state="collapsed"] .folded-summary {
+  display: flex;
+}
+
+.folded-summary-text {
   flex: 0 1 auto;
   min-width: 0;
+  max-width: calc(100% - 26px);
   overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   word-break: normal;
-  text-overflow: clip;
+  opacity: 0.86;
 }
 
 .fold-ellipsis {
-  position: static;
-  transform: none;
-  min-width: 0;
-  margin-left: 2px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--vscode-descriptionForeground, var(--vscode-editorLineNumber-foreground, var(--vscode-editor-foreground)));
-  font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
-  font-size: 0.82em;
-  letter-spacing: 0;
-  line-height: 1;
-  cursor: pointer;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.95;
+  min-width: 20px;
+  margin-left: 6px;
+  padding: 0;
+  color: var(--vscode-descriptionForeground, var(--vscode-editorLineNumber-foreground, var(--vscode-editor-foreground)));
+  cursor: pointer;
+  font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
+  font-size: 0.9em;
+  line-height: var(--mt-source-line-height, 19px);
   white-space: nowrap;
+  opacity: 0.9;
+  user-select: none;
 }
 
 /* VS Code の公式トークンカラー変数（CSS Variables）を Prism トークンクラスにマッピング */

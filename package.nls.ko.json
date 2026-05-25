@@ -11,6 +11,8 @@
   "markdownTwin.commands.selectProvider": "Markdown Twin: 번역 제공자 선택",
   "markdownTwin.commands.setApiKey": "Markdown Twin: API 키 설정",
   "markdownTwin.commands.copyTranslatedMarkdown": "Markdown Twin: 번역된 Markdown 복사",
+  "markdownTwin.commands.copyFromPreviewContext": "복사",
+  "markdownTwin.commands.retranslateFromPreviewContext": "재번역",
   "markdownTwin.commands.exportTranslatedMarkdown": "Markdown Twin: 번역된 Markdown 내보내기",
   "markdownTwin.commands.openTranslatedSource": "Markdown Twin: 번역된 소스 보기",
   "markdownTwin.commands.openPreviewFromSource": "Markdown Twin: 번역 미리보기 보기",
