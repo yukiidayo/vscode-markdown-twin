@@ -104,6 +104,11 @@
   --mt-scroll-beyond-last-line: 19px;
 }
 
+#source-container ::selection {
+  background: var(--mt-fold-bg, var(--vscode-editor-foldBackground, var(--vscode-editor-selectionBackground, rgba(128, 128, 128, 0.22))));
+  color: inherit;
+}
+
 #mt-source-highlight-error {
   position: absolute;
   top: 0;
@@ -318,7 +323,7 @@ pre.language-markdown {
   min-width: 0;
   max-width: calc(100% - 26px);
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
   word-break: normal;
   opacity: 0.86;
@@ -330,7 +335,7 @@ pre.language-markdown {
   align-items: center;
   justify-content: center;
   min-width: 20px;
-  margin-left: 6px;
+  margin-left: 0;
   padding: 0;
   color: var(--vscode-descriptionForeground, var(--vscode-editorLineNumber-foreground, var(--vscode-editor-foreground)));
   cursor: pointer;
