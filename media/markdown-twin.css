@@ -232,6 +232,14 @@ pre.language-markdown {
   text-align: center;
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
   position: relative;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.line-number-fold-slot:hover .fold-toggle:not(.fold-toggle-spacer),
+#line-numbers:has(.line-number-fold-slot:hover) .fold-toggle:not(.fold-toggle-spacer),
+.line-number .fold-toggle.is-collapsed {
+  opacity: 1;
 }
 
 .fold-toggle:hover {
