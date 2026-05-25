@@ -14,7 +14,7 @@ import { MicrosoftProvider, AzureRegionError } from './providers/microsoftProvid
 import { ApiKeyManager } from './apiKeyManager';
 import { StatusBar } from './statusBar';
 import { shouldTranslate, splitTranslatableParts, joinTranslatedParts, EXCLUDED_TOKEN_TYPES } from './languageDetector';
-import { getLanguageISO, normalizeTargetLanguageCode } from './languages';
+import { resolveSourceLanguageCode, normalizeTargetLanguageCode } from './languages';
 import { t } from './i18n';
 import { PreviewPanel } from './previewPanel';
 import { buildTranslatedMarkdown, type TranslationViewMode } from './translatedMarkdownBuilder';
@@ -124,7 +124,7 @@ export class TranslationManager implements vscode.Disposable {
     const providerId = normalizeProviderId(overrideProvider ?? config.get<string>('provider'));
     this.statusBar?.setActiveProvider(providerId);
 
-    const sourceLang = getLanguageISO(config.get<string>('sourceLanguage') ?? 'ja');
+    const sourceLang = resolveSourceLanguageCode(config.get<string>('sourceLanguage') ?? 'ja');
     const defaultTargetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
     const batchSize = config.get<number>('batchSize') ?? 10;
 

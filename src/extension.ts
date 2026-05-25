@@ -13,8 +13,8 @@ import {
 import { PreviewPanel } from './previewPanel';
 import { t } from './i18n';
 import { isCursor } from './utils';
-import { restartTranslationForCurrentPreview } from './retranslation';
-import { triggerTranslationForDocument } from './translationTrigger';
+import { rerunActivePreviewTranslation } from './previewTranslation';
+import { runTranslationForDocument } from './translationRunner';
 
 let translationManager: TranslationManager;
 
@@ -97,7 +97,7 @@ export async function activate(context: vscode.ExtensionContext) {
         PreviewPanel.updateFlagIcon(code);
 
         if (translationManager.isActive()) {
-          await restartTranslationForCurrentPreview(translationManager, { clearCache: true });
+          await rerunActivePreviewTranslation(translationManager, { clearCache: true });
         } else {
           statusBar.showOffline();
         }
@@ -137,7 +137,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await PreviewPanel.createOrShow(context.extensionUri, translationManager, document);
       }
 
-      await triggerTranslationForDocument(translationManager, document);
+      await runTranslationForDocument(translationManager, document);
       return;
     }
 
@@ -165,7 +165,7 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    await triggerTranslationForDocument(translationManager, document, { overrideProvider: providerId });
+    await runTranslationForDocument(translationManager, document, { overrideProvider: providerId });
   };
 
   context.subscriptions.push(
@@ -289,7 +289,7 @@ export async function activate(context: vscode.ExtensionContext) {
         PreviewPanel.currentPanel = preferredPanel;
 
         if (translationManager.isActive()) {
-          await triggerTranslationForDocument(translationManager, editor.document);
+          await runTranslationForDocument(translationManager, editor.document);
         }
       }
     })

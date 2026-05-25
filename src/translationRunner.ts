@@ -2,15 +2,15 @@ import * as vscode from 'vscode';
 import { TranslationManager } from './translationManager';
 import type { ProviderId } from './providers/ITranslationProvider';
 
-export interface TranslationTriggerOptions {
+export interface RunTranslationOptions {
   clearCache?: boolean;
   overrideProvider?: ProviderId;
 }
 
-export async function triggerTranslationForDocument(
+export async function runTranslationForDocument(
   translationManager: TranslationManager,
   document: vscode.TextDocument | undefined,
-  options?: TranslationTriggerOptions
+  options?: RunTranslationOptions
 ): Promise<boolean> {
   if (!document) return false;
 

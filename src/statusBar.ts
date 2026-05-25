@@ -1,5 +1,5 @@
 ﻿import * as vscode from 'vscode';
-import { getLanguageCode, normalizeTargetLanguageCode } from './languages';
+x1import { getLanguageDisplayCode, normalizeTargetLanguageCode } from './languages';
 import { PROVIDER_DISPLAY_NAMES, normalizeProviderId } from './providers/ITranslationProvider';
 import { t } from './i18n';
 
@@ -33,7 +33,7 @@ export class StatusBar implements vscode.Disposable {
   showProgress(done: number, total: number): void {
     const config = vscode.workspace.getConfiguration('markdownTwin');
     const targetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
-    const targetCode = getLanguageCode(targetLang);
+    const targetCode = getLanguageDisplayCode(targetLang);
     const providerName = this.resolveProviderName();
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     this.item.text = `$(sync~spin) Twin ${providerName} ${pct}% (${targetCode})`;
@@ -44,7 +44,7 @@ export class StatusBar implements vscode.Disposable {
   showComplete(mode: 'translation-only' | 'bilingual'): void {
     const config = vscode.workspace.getConfiguration('markdownTwin');
     const targetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
-    const targetCode = getLanguageCode(targetLang);
+    const targetCode = getLanguageDisplayCode(targetLang);
     const providerName = this.resolveProviderName();
     const icon = mode === 'bilingual' ? '$(split-horizontal)' : '$(globe)';
     this.item.text = `${icon} Twin ${providerName} (${targetCode})`;
@@ -57,7 +57,7 @@ export class StatusBar implements vscode.Disposable {
   showOffline(): void {
     const config = vscode.workspace.getConfiguration('markdownTwin');
     const targetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
-    const targetCode = getLanguageCode(targetLang);
+    const targetCode = getLanguageDisplayCode(targetLang);
     const providerName = this.resolveProviderName();
     this.item.text = `$(globe) Twin: ${providerName} (${targetCode})`;
     this.item.tooltip = t('statusOfflineTooltip', providerName);

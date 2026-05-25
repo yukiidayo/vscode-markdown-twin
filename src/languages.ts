@@ -93,12 +93,12 @@ export function normalizeTargetLanguageCode(rawValue: string | undefined): strin
   return normalizeLanguageCode(rawValue, DEFAULT_TARGET_LANG_CODE, false);
 }
 
-export function getLanguageCode(lang: string): string {
+export function getLanguageDisplayCode(lang: string): string {
   const normalized = normalizeTargetLanguageCode(lang);
   return findLanguage(normalized)?.displayCode ?? normalized.toUpperCase().slice(0, 2);
 }
 
-export function getLanguageISO(lang: string): string {
+export function resolveSourceLanguageCode(lang: string): string {
   return normalizeSourceLanguageCode(lang);
 }
 

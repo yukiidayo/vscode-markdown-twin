@@ -1,17 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import MarkdownIt from 'markdown-it';
-import { Registry, parseRawGrammar, INITIAL, type IGrammar, type IRawGrammar, type IRawTheme, type StateStack } from 'vscode-textmate';
-import { loadWASM, OnigScanner, OnigString } from 'vscode-oniguruma';
 import { TranslationManager } from './translationManager';
 import { getTargetLanguageCode } from './languages';
 import { t } from './i18n';
 import { isCursor } from './utils';
 import { markdownTwinWebviewPlugin } from './preview/markdownTwinWebviewPlugin';
 import { buildPreviewWebviewHtml } from './preview/webviewHtml';
-import { SourceThemeResolver } from './preview/sourceThemeResolver';
-import { triggerTranslationForDocument } from './translationTrigger';
+import { MarkdownSourceHighlighter } from './preview/sourceHighlighter';
+import { runTranslationForDocument } from './translationRunner';
 import { escapeHtml } from './utils/html';
 
 export class PreviewPanel {
@@ -24,15 +21,10 @@ export class PreviewPanel {
   private _disposables: vscode.Disposable[] = [];
   private _editor: vscode.TextEditor;
   private _isInitialized = false;
+  private _isDisposed = false;
   public readonly langCode: string;
   private _viewMode: 'preview' | 'source' = 'preview';
-  private _tmRegistry: Registry | null = null;
-  private _tmGrammar: IGrammar | null = null;
-  private _tmGrammarScopeName: string | null = null;
-  private _tmThemeId: string | null = null;
-  private _tmScopeToPath = new Map<string, string>();
-  private _tmOnigReadyPromise: Promise<void> | null = null;
-  private _themeResolver = new SourceThemeResolver();
+  private _sourceHighlighter = new MarkdownSourceHighlighter();
 
   public get editorDocumentUri(): vscode.Uri {
     return this._editor.document.uri;
@@ -114,13 +106,12 @@ export class PreviewPanel {
     }
 
     const code = getTargetLanguageCode();
-
     const uriStr = activeEditor.document.uri.toString();
     const panelKey = `${uriStr}@${code}`;
-
     const column = activeEditor.viewColumn;
     const targetColumn = column ? column + 1 : vscode.ViewColumn.Two;
-    // `${documentUri}@${langCode}` をキーとしてパネルを一意に管理する
+
+    // `${documentUri}@${langCode}` をキーとしてパネルを一意に管理する。
     const existing = PreviewPanel.allPanels.get(panelKey);
     if (existing) {
       PreviewPanel.currentPanel = existing;
@@ -131,7 +122,7 @@ export class PreviewPanel {
       return true;
     }
 
-    // 既定はエディタの右隣にプレビューを開く
+    // 既定ではエディタの右隣にプレビューを開く。
     const panel = vscode.window.createWebviewPanel(
       PreviewPanel.viewType,
       t('previewTitle', path.basename(activeEditor.document.fileName)),
@@ -175,14 +166,14 @@ export class PreviewPanel {
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
-    // パネルが再びアクティブになったら表示内容を再同期する
+    // パネルが再びアクティブになったら表示内容を再同期する。
     this._panel.onDidChangeViewState(
       () => {
         if (this._panel.active) {
           PreviewPanel.currentPanel = this;
           this._syncShowingSourceContext();
           if (this.translationManager.isActive()) {
-            void triggerTranslationForDocument(this.translationManager, this._editor.document);
+            void runTranslationForDocument(this.translationManager, this._editor.document);
           } else {
             this._update();
           }
@@ -205,7 +196,7 @@ export class PreviewPanel {
 
     vscode.workspace.onDidChangeTextDocument(
       e => {
-        // 現在パネルと同じドキュメント変更のみ反映する
+        // 現在パネルと同じドキュメント変更のみ反映する。
         if (e.document.uri.toString() === this._editor.document.uri.toString()) {
           if (this._isSameDocAsActive) {
             this._update();
@@ -218,7 +209,7 @@ export class PreviewPanel {
 
     vscode.workspace.onDidChangeConfiguration(
       e => {
-        // テーマ変更時は再ハイライトのため再描画する
+        // テーマ変更時は再ハイライトのため再描画する。
         if (e.affectsConfiguration('workbench.colorTheme') && this._isSameDocAsActive) {
           this._update();
         }
@@ -241,7 +232,7 @@ export class PreviewPanel {
 
     this._disposables.push(
       this.translationManager.onTranslationUpdated((updatedUri) => {
-        // 全体更新または同一URI更新のときだけ再描画する
+        // 全体更新または同一URI更新のときだけ再描画する。
         const docUriStr = this._editor.document.uri.toString();
         if (!updatedUri || updatedUri.toString() === docUriStr) {
           this._update();
@@ -266,13 +257,12 @@ export class PreviewPanel {
     const webview = this._panel.webview;
     const document = this._editor.document;
     const text = document.getText();
-
     const md = new MarkdownIt({ html: true });
 
     md.use((mdInstance) => {
       const originalRender = mdInstance.renderer.render;
       mdInstance.renderer.render = function (tokens: any[], options: any, env: any) {
-        // 各ブロック先頭行を data-line に埋め込み、スクロール同期に使う
+        // 各ブロック先頭行を data-line に埋め込み、スクロール同期に使う。
         for (const token of tokens) {
           if (token.map && token.nesting === 1) {
             const line = token.map[0];
@@ -283,27 +273,28 @@ export class PreviewPanel {
       };
     });
 
-    // 翻訳結果を埋め込むためのWebview専用プラグイン
+    // 翻訳結果を埋め込むためのWebview専用プラグイン。
     md.use(markdownTwinWebviewPlugin, { translationManager: this.translationManager, document, langCode: this.langCode });
 
     const renderedHtml = md.render(text);
 
-    // sourceモード用の翻訳済みMarkdownを生成する
+    // sourceモード用の翻訳済みMarkdownを生成する。
     const sourceMarkdown = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
     let highlightedSource = escapeHtml(sourceMarkdown);
-    
+
     const sourceLineCount = sourceMarkdown.split(/\r?\n/).length;
     const editorOptions = this._editor.options as { lineHeight?: number };
     const sourceLineHeight = typeof editorOptions.lineHeight === 'number' && editorOptions.lineHeight > 0
       ? editorOptions.lineHeight
       : 22;
+
     try {
-      highlightedSource = await this._highlightSourceMarkdownWithTextMate(sourceMarkdown);
+      highlightedSource = await this._sourceHighlighter.highlight(sourceMarkdown);
     } catch (err: any) {
-      // ハイライト失敗時はプレーンエスケープ表示にフォールバック
       this.translationManager.logWarning(`TextMate source highlight fallback: ${err?.message ?? String(err)}`);
     }
-    const sourceTokenThemeVars = this._resolveSourceTokenThemeVars();
+
+    const sourceTokenThemeVars = this._sourceHighlighter.resolveTokenThemeVars();
 
     if (!this._isInitialized) {
       const twinCssUri = webview.asWebviewUri(
@@ -337,175 +328,10 @@ export class PreviewPanel {
     }
   }
 
-  private async _highlightSourceMarkdownWithTextMate(sourceMarkdown: string): Promise<string> {
-    const ready = await this._ensureTextMateReady();
-    if (!ready || !this._tmGrammar || !this._tmRegistry) {
-      // テーマ/文法が未準備なら最低限のHTMLエスケープで返す
-      return escapeHtml(sourceMarkdown);
-    }
-
-    const lines = sourceMarkdown.split(/\r?\n/);
-    const colorMap = this._tmRegistry.getColorMap();
-    const renderedLines: string[] = [];
-    let ruleStack: StateStack | null = INITIAL;
-
-    for (const line of lines) {
-      const result = this._tmGrammar.tokenizeLine2(line, ruleStack);
-      ruleStack = result.ruleStack;
-      renderedLines.push(this._renderTextMateLine(line, result.tokens, colorMap));
-    }
-
-    return renderedLines.join('\n');
-  }
-
-  private _renderTextMateLine(line: string, binaryTokens: Uint32Array, colorMap: string[]): string {
-    if (line.length === 0 || binaryTokens.length === 0) {
-      return '';
-    }
-
-    let html = '';
-    for (let i = 0; i < binaryTokens.length; i += 2) {
-      const startIndex = binaryTokens[i];
-      const metadata = binaryTokens[i + 1];
-      const endIndex = (i + 2 < binaryTokens.length) ? binaryTokens[i + 2] : line.length;
-      if (endIndex <= startIndex) continue;
-
-      const raw = line.slice(startIndex, endIndex);
-      if (!raw) continue;
-
-      const style = this._styleFromTokenMetadata(metadata, colorMap);
-      const escaped = escapeHtml(raw);
-      html += style ? `<span style="${style}">${escaped}</span>` : escaped;
-    }
-    return html;
-  }
-
-  private _styleFromTokenMetadata(metadata: number, colorMap: string[]): string {
-    const foregroundId = this._metadataForeground(metadata);
-    const fontStyle = this._metadataFontStyle(metadata);
-    const styles: string[] = [];
-
-    // TextMateのメタデータをCSSへ変換する
-    // 背景色はWebview/CSS側の管理に任せる
-    const color = colorMap[foregroundId];
-    if (foregroundId > 1 && color) styles.push(`color:${color}`);
-    if (fontStyle & 1) styles.push('font-style:italic');
-    if (fontStyle & 2) styles.push('font-weight:700');
-    if (fontStyle & 4) styles.push('text-decoration:underline');
-    if (fontStyle & 8) styles.push('text-decoration:line-through');
-
-    return styles.join(';');
-  }
-
-  private _metadataFontStyle(metadata: number): number {
-    return (metadata >>> 11) & 0b1111;
-  }
-
-  private _metadataForeground(metadata: number): number {
-    return (metadata >>> 15) & 0x1ff;
-  }
-
-  private async _ensureTextMateReady(): Promise<boolean> {
-    const themeId = vscode.workspace.getConfiguration('workbench').get<string>('colorTheme') ?? '';
-    if (this._tmRegistry && this._tmGrammar && this._tmThemeId === themeId) {
-      // 既存テーマのままならregistry/grammarを再利用する
-      return true;
-    }
-
-    const markdownGrammarInfo = this._resolveMarkdownGrammar();
-    if (!markdownGrammarInfo) return false;
-
-    await this._ensureOnigWasmLoaded();
-
-    const theme = this._createTextMateTheme(themeId);
-    this._tmRegistry = new Registry({
-      onigLib: Promise.resolve({
-        createOnigScanner: (patterns: string[]) => new OnigScanner(patterns),
-        createOnigString: (s: string) => new OnigString(s),
-      }),
-      theme,
-      loadGrammar: async (scopeName: string): Promise<IRawGrammar | null> => {
-        const grammarPath = this._tmScopeToPath.get(scopeName);
-        if (!grammarPath || !fs.existsSync(grammarPath)) return null;
-        const raw = fs.readFileSync(grammarPath, 'utf8');
-        return parseRawGrammar(raw, grammarPath);
-      },
-    });
-
-    this._tmGrammar = await this._tmRegistry.loadGrammar(markdownGrammarInfo.scopeName);
-    this._tmGrammarScopeName = markdownGrammarInfo.scopeName;
-    this._tmThemeId = themeId;
-    return !!this._tmGrammar;
-  }
-
-  private async _ensureOnigWasmLoaded(): Promise<void> {
-    if (!this._tmOnigReadyPromise) {
-      this._tmOnigReadyPromise = (async () => {
-        const onigWasmPath = require.resolve('vscode-oniguruma/release/onig.wasm');
-        const wasmFile = fs.readFileSync(onigWasmPath);
-        const wasmBytes = wasmFile.buffer.slice(
-          wasmFile.byteOffset,
-          wasmFile.byteOffset + wasmFile.byteLength
-        );
-        await loadWASM(wasmBytes);
-      })();
-    }
-    await this._tmOnigReadyPromise;
-  }
-
-  private _resolveMarkdownGrammar(): { scopeName: string; grammarPath: string } | null {
-    // まずMarkdown拡張の寄与情報からscopeを優先解決する
-    this._tmScopeToPath = this._buildScopeToGrammarPathMap();
-    const markdownExt = vscode.extensions.getExtension('vscode.markdown-language-features');
-    if (markdownExt) {
-      const grammars = markdownExt.packageJSON?.contributes?.grammars;
-      if (Array.isArray(grammars)) {
-        const mdGrammar = grammars.find((g: any) =>
-          g?.language === 'markdown' || String(g?.scopeName ?? '').toLowerCase().includes('markdown')
-        );
-        if (mdGrammar?.scopeName && mdGrammar?.path) {
-          const grammarPath = path.join(markdownExt.extensionUri.fsPath, mdGrammar.path);
-          this._tmScopeToPath.set(mdGrammar.scopeName, grammarPath);
-          return { scopeName: mdGrammar.scopeName, grammarPath };
-        }
-      }
-    }
-
-    for (const [scopeName, grammarPath] of this._tmScopeToPath.entries()) {
-      if (scopeName.toLowerCase().includes('markdown')) {
-        return { scopeName, grammarPath };
-      }
-    }
-
-    return null;
-  }
-
-  private _buildScopeToGrammarPathMap(): Map<string, string> {
-    // 全拡張から scope->grammar の対応表を構築する
-    const map = new Map<string, string>();
-    for (const ext of vscode.extensions.all) {
-      const grammars = ext.packageJSON?.contributes?.grammars;
-      if (!Array.isArray(grammars)) continue;
-      for (const grammar of grammars) {
-        const scopeName = grammar?.scopeName;
-        const grammarPath = grammar?.path;
-        if (!scopeName || !grammarPath) continue;
-        map.set(scopeName, path.join(ext.extensionUri.fsPath, grammarPath));
-      }
-    }
-    return map;
-  }
-
-  private _resolveSourceTokenThemeVars(): Record<string, string> {
-    const themeId = vscode.workspace.getConfiguration('workbench').get<string>('colorTheme') ?? '';
-    return this._themeResolver.resolveTokenThemeVars(themeId);
-  }
-
-  private _createTextMateTheme(themeId: string): IRawTheme {
-    return this._themeResolver.createTextMateTheme(themeId);
-  }
-
   public dispose() {
+    if (this._isDisposed) return;
+    this._isDisposed = true;
+
     const uriStr = this._editor.document.uri.toString();
     const panelKey = `${uriStr}@${this.langCode}`;
     PreviewPanel.allPanels.delete(panelKey);
@@ -527,12 +353,11 @@ export class PreviewPanel {
       vscode.commands.executeCommand('setContext', 'markdownTwin.translationActive', false);
     }
 
-    this._panel.dispose();
-
-    while (this._disposables.length) {
-      const x = this._disposables.pop();
-      if (x) x.dispose();
+    if (this._disposables.length) {
+      while (this._disposables.length) {
+        const x = this._disposables.pop();
+        if (x) x.dispose();
+      }
     }
   }
-
 }

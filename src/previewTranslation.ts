@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { PreviewPanel } from './previewPanel';
 import { TranslationManager } from './translationManager';
-import { triggerTranslationForDocument, type TranslationTriggerOptions } from './translationTrigger';
+import { runTranslationForDocument, type RunTranslationOptions } from './translationRunner';
 
-export function getCurrentPreviewDocument(): vscode.TextDocument | undefined {
+export function getActivePreviewDocument(): vscode.TextDocument | undefined {
   const activeUri = PreviewPanel.currentPanel?.editorDocumentUri;
   if (!activeUri) return undefined;
 
@@ -12,12 +12,12 @@ export function getCurrentPreviewDocument(): vscode.TextDocument | undefined {
   );
 }
 
-export async function restartTranslationForCurrentPreview(
+export async function rerunActivePreviewTranslation(
   translationManager: TranslationManager,
-  options?: TranslationTriggerOptions
+  options?: RunTranslationOptions
 ): Promise<boolean> {
-  const doc = getCurrentPreviewDocument();
-  if (!doc) return false;
-  await triggerTranslationForDocument(translationManager, doc, options);
+  const document = getActivePreviewDocument();
+  if (!document) return false;
+  await runTranslationForDocument(translationManager, document, options);
   return true;
 }

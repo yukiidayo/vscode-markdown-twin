@@ -15,7 +15,7 @@ import {
 } from './languages';
 import { PreviewPanel } from './previewPanel';
 import { t } from './i18n';
-import { restartTranslationForCurrentPreview } from './retranslation';
+import { rerunActivePreviewTranslation } from './previewTranslation';
 
 interface ProviderItem extends vscode.QuickPickItem {
   id: ProviderId;
@@ -151,7 +151,7 @@ export class ProviderSelector {
     PreviewPanel.updateFlagIcon(selected.code);
 
     if (this.translationManager.isActive()) {
-      await restartTranslationForCurrentPreview(this.translationManager, { clearCache: true });
+      await rerunActivePreviewTranslation(this.translationManager, { clearCache: true });
     } else {
       this.statusBar.showOffline();
     }
@@ -217,7 +217,7 @@ export class ProviderSelector {
     }
 
     if (this.translationManager.isActive()) {
-      await restartTranslationForCurrentPreview(this.translationManager, {
+      await rerunActivePreviewTranslation(this.translationManager, {
         clearCache: true,
         overrideProvider: selected.id,
       });
