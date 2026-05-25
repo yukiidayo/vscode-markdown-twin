@@ -109,6 +109,101 @@ export const WEBVIEW_SCRIPT_SHARED = `
             banner.textContent = text;
         }
 
+        function getSourceScrollbarParts() {
+            const sourceContainer = document.getElementById('source-container');
+            const scrollbar = document.getElementById('mt-source-scrollbar');
+            const track = document.getElementById('mt-source-scrollbar-track');
+            const thumb = document.getElementById('mt-source-scrollbar-thumb');
+            return { sourceContainer, scrollbar, track, thumb };
+        }
+
+        function updateSourceScrollbar() {
+            const { sourceContainer, scrollbar, track, thumb } = getSourceScrollbarParts();
+            if (!sourceContainer || !scrollbar || !track || !thumb) return;
+
+            const maxScroll = sourceContainer.scrollHeight - sourceContainer.clientHeight;
+            if (!Number.isFinite(maxScroll) || maxScroll <= 0) {
+                scrollbar.classList.add('is-inactive');
+                thumb.style.height = '0px';
+                thumb.style.transform = 'translateY(0px)';
+                return;
+            }
+
+            const trackHeight = track.clientHeight;
+            if (!Number.isFinite(trackHeight) || trackHeight <= 0) {
+                scrollbar.classList.add('is-inactive');
+                return;
+            }
+
+            scrollbar.classList.remove('is-inactive');
+
+            const minThumbHeight = 24;
+            const rawThumbHeight = Math.floor((sourceContainer.clientHeight / sourceContainer.scrollHeight) * trackHeight);
+            const thumbHeight = Math.max(minThumbHeight, Math.min(trackHeight, rawThumbHeight));
+            const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
+            const progress = Math.max(0, Math.min(1, sourceContainer.scrollTop / maxScroll));
+            const thumbTop = Math.round(progress * maxThumbTop);
+
+            thumb.style.height = thumbHeight + 'px';
+            thumb.style.transform = 'translateY(' + thumbTop + 'px)';
+        }
+
+        function bindSourceScrollbar() {
+            const { sourceContainer, scrollbar, track, thumb } = getSourceScrollbarParts();
+            if (!sourceContainer || !scrollbar || !track || !thumb) return;
+            if (scrollbar.dataset.mtBound === '1') return;
+            scrollbar.dataset.mtBound = '1';
+
+            let dragging = false;
+            let dragPointerOffset = 0;
+
+            const stopDrag = () => {
+                if (!dragging) return;
+                dragging = false;
+                document.body.classList.remove('mt-scrollbar-dragging');
+            };
+
+            const dragToClientY = (clientY) => {
+                const rect = track.getBoundingClientRect();
+                const maxScroll = sourceContainer.scrollHeight - sourceContainer.clientHeight;
+                if (maxScroll <= 0) return;
+
+                const thumbHeight = thumb.offsetHeight;
+                const maxThumbTop = Math.max(0, rect.height - thumbHeight);
+                const nextThumbTop = Math.max(0, Math.min(maxThumbTop, clientY - rect.top - dragPointerOffset));
+                const progress = maxThumbTop > 0 ? nextThumbTop / maxThumbTop : 0;
+                sourceContainer.scrollTop = progress * maxScroll;
+                updateSourceScrollbar();
+            };
+
+            thumb.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const thumbRect = thumb.getBoundingClientRect();
+                dragging = true;
+                dragPointerOffset = event.clientY - thumbRect.top;
+                document.body.classList.add('mt-scrollbar-dragging');
+            });
+
+            track.addEventListener('mousedown', (event) => {
+                if (event.target === thumb) return;
+                event.preventDefault();
+                dragPointerOffset = thumb.offsetHeight / 2;
+                dragToClientY(event.clientY);
+            });
+
+            window.addEventListener('mousemove', (event) => {
+                if (!dragging) return;
+                dragToClientY(event.clientY);
+            });
+
+            window.addEventListener('mouseup', stopDrag);
+            window.addEventListener('mouseleave', stopDrag);
+
+            sourceContainer.addEventListener('scroll', updateSourceScrollbar, { passive: true });
+            updateSourceScrollbar();
+        }
+
         function bindFoldRailHoverState() {
             const rail = document.getElementById('line-numbers');
             if (!rail || rail.dataset.mtFoldRailBound === '1') return;
@@ -386,18 +481,26 @@ export const WEBVIEW_SCRIPT_SOURCE_RENDERING = `
         function syncLineHeights() {
             const codeEl = document.getElementById('source-code');
             const lineNumbersEl = document.getElementById('line-numbers');
-            if (!codeEl || !lineNumbersEl) return;
+            if (!codeEl || !lineNumbersEl) {
+                updateSourceScrollbar();
+                return;
+            }
 
             const codeLines = codeEl.querySelectorAll('.code-line');
             const lineNumbers = lineNumbersEl.querySelectorAll('.line-number');
 
-            if (codeLines.length !== lineNumbers.length) return;
+            if (codeLines.length !== lineNumbers.length) {
+                updateScrollBeyondLastLinePadding();
+                updateSourceScrollbar();
+                return;
+            }
 
             for (let i = 0; i < codeLines.length; i++) {
                 const height = codeLines[i].getBoundingClientRect().height;
                 lineNumbers[i].style.height = height + 'px';
             }
             updateScrollBeyondLastLinePadding();
+            updateSourceScrollbar();
         }
 
         function renderSourceCode(rawHtml, sourceText, expectedLineCount) {
@@ -456,6 +559,7 @@ export const WEBVIEW_SCRIPT_SYNC = `
             applySourceEditorMetrics(initialSourceLineHeight);
             applyResolvedFoldBackground();
             applySourceTokenThemeVars(initialSourceTokenThemeVars);
+            bindSourceScrollbar();
             const sourceCodeEl = document.getElementById('source-code');
             if (sourceCodeEl) {
                 const initialRawHtml = sourceCodeEl.innerHTML;
@@ -465,7 +569,10 @@ export const WEBVIEW_SCRIPT_SYNC = `
             console.error('Error in initial source code render:', e);
         }
 
-        window.addEventListener('resize', syncLineHeights);
+        window.addEventListener('resize', () => {
+            syncLineHeights();
+            updateSourceScrollbar();
+        });
 
         window.addEventListener('message', event => {
             const message = event.data;
@@ -487,7 +594,10 @@ export const WEBVIEW_SCRIPT_SYNC = `
                 if (message.mode === 'source') {
                     previewEl.style.display = 'none';
                     sourceEl.style.display = 'flex';
-                    setTimeout(syncLineHeights, 0);
+                    setTimeout(() => {
+                        syncLineHeights();
+                        updateSourceScrollbar();
+                    }, 0);
                 } else {
                     previewEl.style.display = 'block';
                     sourceEl.style.display = 'none';
@@ -513,6 +623,7 @@ export const WEBVIEW_SCRIPT_SYNC = `
         const sourceContainerEl = document.getElementById('source-container');
         if (sourceContainerEl) {
             sourceContainerEl.addEventListener('scroll', () => {
+                updateSourceScrollbar();
                 if (isSyncingScroll) return;
                 if (!isSourceModeActive()) return;
                 const lineEl = findSourceLineAtTop();

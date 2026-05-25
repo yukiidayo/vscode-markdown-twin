@@ -62,6 +62,11 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
         <div id="mt-source-highlight-error" style="display: ${sourceHighlightError ? 'block' : 'none'};">${sourceHighlightError ?? ''}</div>
         <div id="line-numbers"></div>
         <pre class="language-markdown"><code class="language-markdown" id="source-code">${highlightedSource}</code></pre>
+        <div id="mt-source-scrollbar" aria-hidden="true">
+            <div id="mt-source-scrollbar-track">
+                <div id="mt-source-scrollbar-thumb"></div>
+            </div>
+        </div>
     </div>
 
     <script nonce="${scriptNonce}">

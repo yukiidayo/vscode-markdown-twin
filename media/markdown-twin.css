@@ -101,12 +101,79 @@
   box-sizing: border-box;
   background-color: var(--vscode-editor-background);
   overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   --mt-scroll-beyond-last-line: 19px;
+  --mt-scrollbar-gutter: 20px;
+}
+
+#source-container::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 #source-container ::selection {
   background: var(--mt-fold-bg, var(--vscode-editor-foldBackground, var(--vscode-editor-selectionBackground, rgba(128, 128, 128, 0.22))));
   color: inherit;
+}
+
+#mt-source-scrollbar {
+  position: fixed;
+  top: 22px;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  z-index: 16;
+  pointer-events: none;
+}
+
+body.mt-preview-mode #mt-source-scrollbar {
+  display: none;
+}
+
+#mt-source-scrollbar.is-inactive {
+  opacity: 0;
+}
+
+#mt-source-scrollbar-track {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  box-sizing: border-box;
+  border-left: 1px solid var(--vscode-panel-border, var(--vscode-editorWidget-border, rgba(255, 255, 255, 0.14)));
+  pointer-events: auto;
+  background: transparent;
+}
+
+#mt-source-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 14px;
+  min-height: 24px;
+  border-radius: 0;
+  background: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4));
+  transition-property: background-color, opacity;
+  transition-duration: 160ms, 1000ms;
+  transition-timing-function: ease, ease;
+  opacity: 0;
+}
+
+#mt-source-scrollbar-track:hover #mt-source-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-hoverBackground, rgba(100, 100, 100, 0.7));
+}
+
+body.mt-source-mode:hover #mt-source-scrollbar-thumb,
+body.mt-scrollbar-dragging #mt-source-scrollbar-thumb {
+  transition-duration: 160ms, 160ms;
+  opacity: 0.9;
+}
+
+body.mt-scrollbar-dragging {
+  user-select: none;
 }
 
 #mt-source-highlight-error {
@@ -183,7 +250,7 @@ body.mt-source-mode {
 pre.language-markdown {
   flex: 1;
   margin: 0;
-  padding: 8px 0 var(--mt-scroll-beyond-last-line) 0;
+  padding: 8px var(--mt-scrollbar-gutter) var(--mt-scroll-beyond-last-line) 0;
   border: none;
   border-radius: 0;
   box-sizing: border-box;
