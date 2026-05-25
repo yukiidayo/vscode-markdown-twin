@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import MarkdownIt from 'markdown-it';
@@ -9,7 +9,9 @@ import { getTargetLanguageCode } from './languages';
 import { t } from './i18n';
 import { isCursor } from './utils';
 import { markdownTwinWebviewPlugin } from './preview/markdownTwinWebviewPlugin';
+import { buildPreviewWebviewHtml } from './preview/webviewHtml';
 import { SourceThemeResolver } from './preview/sourceThemeResolver';
+import { triggerTranslationForDocument } from './translationTrigger';
 import { escapeHtml } from './utils/html';
 
 export class PreviewPanel {
@@ -118,7 +120,7 @@ export class PreviewPanel {
 
     const column = activeEditor.viewColumn;
     const targetColumn = column ? column + 1 : vscode.ViewColumn.Two;
-    // `${documentUri}@${langCode}` ???????????????????????
+    // `${documentUri}@${langCode}` をキーとしてパネルを一意に管理する
     const existing = PreviewPanel.allPanels.get(panelKey);
     if (existing) {
       PreviewPanel.currentPanel = existing;
@@ -129,7 +131,7 @@ export class PreviewPanel {
       return true;
     }
 
-    // ????????+??????????????????????????
+    // 既定はエディタの右隣にプレビューを開く
     const panel = vscode.window.createWebviewPanel(
       PreviewPanel.viewType,
       t('previewTitle', path.basename(activeEditor.document.fileName)),
@@ -173,14 +175,14 @@ export class PreviewPanel {
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
-    // ?????????????????????????
+    // パネルが再びアクティブになったら表示内容を再同期する
     this._panel.onDidChangeViewState(
       () => {
         if (this._panel.active) {
           PreviewPanel.currentPanel = this;
           this._syncShowingSourceContext();
           if (this.translationManager.isActive()) {
-            this.translationManager.startTranslation(this._editor.document);
+            void triggerTranslationForDocument(this.translationManager, this._editor.document);
           } else {
             this._update();
           }
@@ -192,7 +194,7 @@ export class PreviewPanel {
 
     this._panel.webview.onDidReceiveMessage(
       message => {
-        // ???????: Webview -> ????
+        // メッセージ連携: Webview -> 拡張
         if (message.command === 'scroll') {
           this._handleScrollMessage(message.line);
         }
@@ -203,7 +205,7 @@ export class PreviewPanel {
 
     vscode.workspace.onDidChangeTextDocument(
       e => {
-        // ???????????????????????????
+        // 現在パネルと同じドキュメント変更のみ反映する
         if (e.document.uri.toString() === this._editor.document.uri.toString()) {
           if (this._isSameDocAsActive) {
             this._update();
@@ -216,7 +218,7 @@ export class PreviewPanel {
 
     vscode.workspace.onDidChangeConfiguration(
       e => {
-        // ????????????????????????
+        // テーマ変更時は再ハイライトのため再描画する
         if (e.affectsConfiguration('workbench.colorTheme') && this._isSameDocAsActive) {
           this._update();
         }
@@ -227,7 +229,7 @@ export class PreviewPanel {
 
     vscode.window.onDidChangeTextEditorVisibleRanges(
       e => {
-        // ???????: ???? -> Webview
+        // スクロール連携: エディタ -> Webview
         if (e.textEditor === this._editor && e.visibleRanges.length > 0) {
           const topLine = e.visibleRanges[0].start.line;
           this._panel.webview.postMessage({ type: 'scroll', line: topLine });
@@ -239,7 +241,7 @@ export class PreviewPanel {
 
     this._disposables.push(
       this.translationManager.onTranslationUpdated((updatedUri) => {
-        // ???????????????URI?????????????
+        // 全体更新または同一URI更新のときだけ再描画する
         const docUriStr = this._editor.document.uri.toString();
         if (!updatedUri || updatedUri.toString() === docUriStr) {
           this._update();
@@ -270,7 +272,7 @@ export class PreviewPanel {
     md.use((mdInstance) => {
       const originalRender = mdInstance.renderer.render;
       mdInstance.renderer.render = function (tokens: any[], options: any, env: any) {
-        // ?????????????????????????????
+        // 各ブロック先頭行を data-line に埋め込み、スクロール同期に使う
         for (const token of tokens) {
           if (token.map && token.nesting === 1) {
             const line = token.map[0];
@@ -281,12 +283,12 @@ export class PreviewPanel {
       };
     });
 
-    // ??????????????/?????????????
+    // 翻訳結果を埋め込むためのWebview専用プラグイン
     md.use(markdownTwinWebviewPlugin, { translationManager: this.translationManager, document, langCode: this.langCode });
 
     const renderedHtml = md.render(text);
 
-    // source?????????Markdown??????
+    // sourceモード用の翻訳済みMarkdownを生成する
     const sourceMarkdown = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
     let highlightedSource = escapeHtml(sourceMarkdown);
     
@@ -298,7 +300,7 @@ export class PreviewPanel {
     try {
       highlightedSource = await this._highlightSourceMarkdownWithTextMate(sourceMarkdown);
     } catch (err: any) {
-      // ????????????????????????
+      // ハイライト失敗時はプレーンエスケープ表示にフォールバック
       this.translationManager.logWarning(`TextMate source highlight fallback: ${err?.message ?? String(err)}`);
     }
     const sourceTokenThemeVars = this._resolveSourceTokenThemeVars();
@@ -310,17 +312,17 @@ export class PreviewPanel {
       const markdownCssUri = webview.asWebviewUri(
         vscode.Uri.file(path.join(this._extensionUri.fsPath, 'media', 'markdown.css'))
       );
-      webview.html = this._getHtmlForWebview(
-        webview,
+      webview.html = buildPreviewWebviewHtml({
         renderedHtml,
         highlightedSource,
-        sourceMarkdown,
+        sourceText: sourceMarkdown,
         sourceLineCount,
         sourceLineHeight,
         sourceTokenThemeVars,
         markdownCssUri,
-        twinCssUri
-      );
+        twinCssUri,
+        viewMode: this._viewMode
+      });
       this._isInitialized = true;
     } else {
       webview.postMessage({
@@ -338,7 +340,7 @@ export class PreviewPanel {
   private async _highlightSourceMarkdownWithTextMate(sourceMarkdown: string): Promise<string> {
     const ready = await this._ensureTextMateReady();
     if (!ready || !this._tmGrammar || !this._tmRegistry) {
-      // ??/???????????????????????????????
+      // テーマ/文法が未準備なら最低限のHTMLエスケープで返す
       return escapeHtml(sourceMarkdown);
     }
 
@@ -383,8 +385,8 @@ export class PreviewPanel {
     const fontStyle = this._metadataFontStyle(metadata);
     const styles: string[] = [];
 
-    // ?????????????
-    // ??????Webview/??????????????
+    // TextMateのメタデータをCSSへ変換する
+    // 背景色はWebview/CSS側の管理に任せる
     const color = colorMap[foregroundId];
     if (foregroundId > 1 && color) styles.push(`color:${color}`);
     if (fontStyle & 1) styles.push('font-style:italic');
@@ -406,7 +408,7 @@ export class PreviewPanel {
   private async _ensureTextMateReady(): Promise<boolean> {
     const themeId = vscode.workspace.getConfiguration('workbench').get<string>('colorTheme') ?? '';
     if (this._tmRegistry && this._tmGrammar && this._tmThemeId === themeId) {
-      // ???????????????????????registry/grammar???????
+      // 既存テーマのままならregistry/grammarを再利用する
       return true;
     }
 
@@ -452,7 +454,7 @@ export class PreviewPanel {
   }
 
   private _resolveMarkdownGrammar(): { scopeName: string; grammarPath: string } | null {
-    // ????Markdown?????????????scope????????????
+    // まずMarkdown拡張の寄与情報からscopeを優先解決する
     this._tmScopeToPath = this._buildScopeToGrammarPathMap();
     const markdownExt = vscode.extensions.getExtension('vscode.markdown-language-features');
     if (markdownExt) {
@@ -479,7 +481,7 @@ export class PreviewPanel {
   }
 
   private _buildScopeToGrammarPathMap(): Map<string, string> {
-    // ??????????? scope->grammar ????????????
+    // 全拡張から scope->grammar の対応表を構築する
     const map = new Map<string, string>();
     for (const ext of vscode.extensions.all) {
       const grammars = ext.packageJSON?.contributes?.grammars;
@@ -533,615 +535,4 @@ export class PreviewPanel {
     }
   }
 
-  private _getHtmlForWebview(
-    webview: vscode.Webview,
-    renderedHtml: string,
-    highlightedSource: string,
-    sourceText: string,
-    sourceLineCount: number,
-    sourceLineHeight: number,
-    sourceTokenThemeVars: Record<string, string>,
-    markdownCssUri: vscode.Uri,
-    twinCssUri: vscode.Uri
-  ) {
-    const isPreview = this._viewMode === 'preview';
-    const isSource = this._viewMode === 'source';
-
-    return `<!DOCTYPE html>
-<html lang="en" class="${isSource ? 'mt-source-mode' : 'mt-preview-mode'}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown Twin Preview</title>
-    <link rel="stylesheet" href="${markdownCssUri}">
-    <link rel="stylesheet" href="${twinCssUri}">
-</head>
-<body class="${isSource ? 'mt-source-mode' : 'mt-preview-mode'}">
-    <div id="preview-container" style="display: ${isPreview ? 'block' : 'none'};">${renderedHtml}</div>
-
-    <div id="source-container" style="display: ${isSource ? 'flex' : 'none'};">
-        <div id="line-numbers"></div>
-        <pre class="language-markdown"><code class="language-markdown" id="source-code">${highlightedSource}</code></pre>
-    </div>
-
-    <script>
-        const vscode = acquireVsCodeApi();
-        let isSyncingScroll = false;
-        let scrollTimeout;
-        const initialSourceLineCount = ${sourceLineCount};
-        const initialSourceLineHeight = ${sourceLineHeight};
-        const initialSourceText = ${JSON.stringify(sourceText)};
-        const initialSourceTokenThemeVars = ${JSON.stringify(sourceTokenThemeVars)};
-        const initialViewMode = '${isSource ? 'source' : 'preview'}';
-        const collapsedFoldStarts = new Set();
-        let foldRangeByStart = new Map();
-        let latestSourceLines = [];
-
-        function applyViewModeLayout(mode) {
-            const root = document.documentElement;
-            const body = document.body;
-            const isSourceMode = mode === 'source';
-            root.classList.toggle('mt-source-mode', isSourceMode);
-            body.classList.toggle('mt-source-mode', isSourceMode);
-            root.classList.toggle('mt-preview-mode', !isSourceMode);
-            body.classList.toggle('mt-preview-mode', !isSourceMode);
-        }
-
-        function applySourceEditorMetrics(lineHeight) {
-            const px = Number(lineHeight);
-            if (!Number.isFinite(px) || px <= 0) return;
-            const root = document.documentElement;
-            root.style.setProperty('--mt-source-line-height', px + 'px');
-        }
-
-        function isTransparentColor(value) {
-            const normalized = String(value || '').trim().toLowerCase();
-            if (!normalized) return true;
-            if (normalized === 'transparent') return true;
-            if (normalized === '#0000') return true;
-            if (normalized === 'rgba(0, 0, 0, 0)' || normalized === 'rgba(0,0,0,0)') return true;
-            return false;
-        }
-
-        function resolveFoldBackgroundColor() {
-            const style = getComputedStyle(document.documentElement);
-            const candidates = [
-                '--vscode-editor-foldBackground',
-                '--vscode-list-hoverBackground',
-                '--vscode-editor-selectionHighlightBackground',
-                '--vscode-editor-selectionBackground',
-            ];
-            for (const name of candidates) {
-                const value = style.getPropertyValue(name);
-                if (!isTransparentColor(value)) {
-                    return value.trim();
-                }
-            }
-            return 'rgba(128, 128, 128, 0.22)';
-        }
-
-        function applyResolvedFoldBackground() {
-            const sourceContainer = document.getElementById('source-container');
-            if (!sourceContainer) return;
-            sourceContainer.style.setProperty('--mt-fold-bg', resolveFoldBackgroundColor());
-        }
-
-        function isOrderedListLine(rawLine) {
-            return /^\\s*\\d+\\.\\s/.test(rawLine);
-        }
-
-        function parseSourceLines(sourceText, expectedLineCount) {
-            const raw = typeof sourceText === 'string' ? sourceText : '';
-            const lines = raw.split(/\\r?\\n/);
-            return alignLineCount(lines, expectedLineCount);
-        }
-
-        function detectFoldRanges(sourceLines) {
-            // ??????????:
-            // 1) fenced code block
-            // 2) ??????
-            const ranges = [];
-            const headingStack = [];
-            let fenceStart = -1;
-            let fenceMarkerChar = '';
-            let fenceMarkerLen = 0;
-            const trimTrailingBlankLines = (start, end) => {
-                let trimmedEnd = end;
-                while (trimmedEnd > start && (sourceLines[trimmedEnd] || '').trim() === '') {
-                    trimmedEnd--;
-                }
-                return trimmedEnd;
-            };
-
-            for (let i = 0; i < sourceLines.length; i++) {
-                const rawLine = sourceLines[i] || '';
-                const trimmed = rawLine.trim();
-
-                if (fenceStart >= 0) {
-                    if (trimmed.startsWith(fenceMarkerChar.repeat(fenceMarkerLen))) {
-                        const end = trimTrailingBlankLines(fenceStart, i);
-                        if (end > fenceStart) {
-                            ranges.push({ start: fenceStart, end });
-                        }
-                        fenceStart = -1;
-                        fenceMarkerChar = '';
-                        fenceMarkerLen = 0;
-                    }
-                    continue;
-                }
-
-                const fenceMatch = trimmed.match(/^([\\x60~]{3,})/);
-                if (fenceMatch) {
-                    fenceStart = i;
-                    fenceMarkerChar = fenceMatch[1][0];
-                    fenceMarkerLen = fenceMatch[1].length;
-                    continue;
-                }
-
-                const headingMatch = rawLine.match(/^\\s{0,3}(#{1,6})\\s+\\S/);
-                if (!headingMatch) {
-                    continue;
-                }
-
-                const level = headingMatch[1].length;
-                while (headingStack.length > 0 && headingStack[headingStack.length - 1].level >= level) {
-                    const prev = headingStack.pop();
-                    const end = trimTrailingBlankLines(prev.start, i - 1);
-                    if (end > prev.start) {
-                        ranges.push({ start: prev.start, end });
-                    }
-                }
-                headingStack.push({ start: i, level });
-            }
-
-            if (fenceStart >= 0) {
-                const end = trimTrailingBlankLines(fenceStart, sourceLines.length - 1);
-                if (end > fenceStart) {
-                    ranges.push({ start: fenceStart, end });
-                }
-            }
-
-            while (headingStack.length > 0) {
-                const prev = headingStack.pop();
-                const end = trimTrailingBlankLines(prev.start, sourceLines.length - 1);
-                if (end > prev.start) {
-                    ranges.push({ start: prev.start, end });
-                }
-            }
-
-            return ranges;
-        }
-
-        function prepareFoldState(sourceLines) {
-            const ranges = detectFoldRanges(sourceLines);
-            foldRangeByStart = new Map(ranges.map(range => [range.start, range]));
-            const validStarts = new Set(ranges.map(range => range.start));
-            for (const start of Array.from(collapsedFoldStarts)) {
-                if (!validStarts.has(start)) {
-                    collapsedFoldStarts.delete(start);
-                }
-            }
-        }
-
-        function isLineHiddenByFold(lineNumber) {
-            for (const start of collapsedFoldStarts) {
-                const range = foldRangeByStart.get(start);
-                if (!range) continue;
-                if (lineNumber > range.start && lineNumber <= range.end) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        function buildFoldToggleHtml(lineNumber) {
-            const range = foldRangeByStart.get(lineNumber);
-            if (!range) {
-                return '<button class="fold-toggle fold-toggle-spacer" type="button" tabindex="-1" aria-hidden="true"></button>';
-            }
-            const collapsed = collapsedFoldStarts.has(lineNumber);
-            const stateClass = collapsed ? ' is-collapsed' : '';
-            const title = collapsed ? 'Expand folded region' : 'Collapse region';
-            return '<button class="fold-toggle' + stateClass + '" type="button" data-fold-start="' + lineNumber + '" aria-expanded="' + (!collapsed) + '" title="' + title + '"></button>';
-        }
-
-        function splitHtmlIntoLines(html) {
-            try {
-                const lines = [];
-                let currentLine = '';
-                const tagStack = [];
-                const regex = /(<[^>]+>|[^<]+)/g;
-                let match;
-                
-                while ((match = regex.exec(html)) !== null) {
-                    const token = match[0];
-                    if (token.startsWith('<')) {
-                        if (token.startsWith('<' + '/')) {
-                            tagStack.pop();
-                            currentLine += token;
-                        } else {
-                            if (!token.endsWith('/>') && !token.startsWith('<!--')) {
-                                const tagNameMatch = token.match(/<([a-zA-Z0-9]+)/);
-                                if (tagNameMatch) {
-                                    tagStack.push(token);
-                                }
-                            }
-                            currentLine += token;
-                        }
-                    } else {
-                        const newline = String.fromCharCode(10);
-                        const textLines = token.split(newline);
-                        for (let i = 0; i < textLines.length; i++) {
-                            if (i > 0) {
-                                let closeTags = '';
-                                for (let j = tagStack.length - 1; j >= 0; j--) {
-                                    const openTag = tagStack[j];
-                                    const tagMatch = openTag.match(/<([a-zA-Z0-9]+)/);
-                                    const tagName = tagMatch ? tagMatch[1] : '';
-                                    if (tagName) {
-                                        closeTags += '<' + '/' + tagName + '>';
-                                    }
-                                }
-                                currentLine += closeTags;
-                                lines.push(currentLine);
-                                
-                                let openTags = '';
-                                for (let j = 0; j < tagStack.length; j++) {
-                                    openTags += tagStack[j];
-                                }
-                                currentLine = openTags;
-                            }
-                            currentLine += textLines[i];
-                        }
-                    }
-                }
-                if (currentLine) {
-                    lines.push(currentLine);
-                }
-                return lines;
-            } catch (err) {
-                console.error('Error splitting HTML into lines:', err);
-                const newline = String.fromCharCode(10);
-                return (html || '').split(newline);
-            }
-        }
-
-        function syncLineHeights() {
-            const codeEl = document.getElementById('source-code');
-            const lineNumbersEl = document.getElementById('line-numbers');
-            if (!codeEl || !lineNumbersEl) return;
-
-            const codeLines = codeEl.querySelectorAll('.code-line');
-            const lineNumbers = lineNumbersEl.querySelectorAll('.line-number');
-            
-            if (codeLines.length !== lineNumbers.length) return;
-            
-            for (let i = 0; i < codeLines.length; i++) {
-                const height = codeLines[i].getBoundingClientRect().height;
-                lineNumbers[i].style.height = height + 'px';
-            }
-            updateScrollBeyondLastLinePadding();
-        }
-
-        function normalizeExpectedLineCount(expectedLineCount) {
-            const count = Number(expectedLineCount);
-            return Number.isFinite(count) && count > 0 ? Math.floor(count) : 1;
-        }
-
-        function alignLineCount(lines, expectedLineCount) {
-            const targetCount = normalizeExpectedLineCount(expectedLineCount);
-            if (lines.length < targetCount) {
-                for (let i = lines.length; i < targetCount; i++) {
-                    lines.push('');
-                }
-            }
-            return lines;
-        }
-
-        function updateScrollBeyondLastLinePadding() {
-            const sourceContainerEl = document.getElementById('source-container');
-            const codeLineEl = document.querySelector('#source-code .code-line');
-            if (!sourceContainerEl || !codeLineEl) return;
-
-            const lineHeight = codeLineEl.getBoundingClientRect().height;
-            const viewportHeight = sourceContainerEl.clientHeight;
-            const minPadding = 22;
-            const bottomPadding = Math.max(minPadding, viewportHeight - lineHeight);
-            sourceContainerEl.style.setProperty('--mt-scroll-beyond-last-line', bottomPadding + 'px');
-        }
-
-        function applySourceTokenThemeVars(themeVars) {
-            const sourceContainerEl = document.getElementById('source-container');
-            if (!sourceContainerEl || !themeVars || typeof themeVars !== 'object') return;
-            for (const key of Object.keys(themeVars)) {
-                const value = themeVars[key];
-                if (typeof value === 'string' && value.length > 0) {
-                    sourceContainerEl.style.setProperty(key, value);
-                }
-            }
-        }
-
-        function renderSourceCode(rawHtml, sourceText, expectedLineCount) {
-            const codeEl = document.getElementById('source-code');
-            const lineNumbersEl = document.getElementById('line-numbers');
-            if (!codeEl || !lineNumbersEl) return;
-
-            const htmlLines = alignLineCount(splitHtmlIntoLines(rawHtml), expectedLineCount);
-            const sourceLines = parseSourceLines(sourceText, expectedLineCount);
-            latestSourceLines = sourceLines;
-            prepareFoldState(sourceLines);
-
-            let codeHtml = '';
-            let lineNumHtml = '';
-
-            sourceLines.forEach((rawLine, index) => {
-                const highlightedLine = htmlLines[index] || '';
-                const displayLine = highlightedLine.trim() === '' ? '&nbsp;' : highlightedLine;
-                const collapsedStart = foldRangeByStart.has(index) && collapsedFoldStarts.has(index);
-                const hiddenByFold = isLineHiddenByFold(index);
-                const styleAttr = hiddenByFold ? ' style="display:none;"' : '';
-                const classes = ['code-line'];
-                if (isOrderedListLine(rawLine)) {
-                    classes.push('ordered-list-line');
-                }
-                if (collapsedStart) {
-                    classes.push('fold-collapsed-start');
-                }
-                const summaryHtml = collapsedStart
-                  ? '<span class="folded-summary" title="Collapsed region">'
-                    + '<span class="code-line-content">' + displayLine + '</span>'
-                    + '<button class="fold-ellipsis" type="button" data-fold-open="' + index + '" title="Expand folded region">...</button>'
-                    + '</span>'
-                  : '<span class="code-line-content">' + displayLine + '</span>';
-
-                codeHtml += '<div class="' + classes.join(' ') + '" data-line="' + index + '"' + styleAttr + '>'
-                  + buildFoldToggleHtml(index)
-                  + summaryHtml
-                  + '</div>';
-                lineNumHtml += '<div class="line-number" data-line="' + index + '"' + styleAttr + '>' + (index + 1) + '</div>';
-            });
-
-            codeEl.innerHTML = codeHtml;
-            lineNumbersEl.innerHTML = lineNumHtml;
-            bindFoldToggleEvents();
-            syncLineHeights();
-        }
-
-        function setFoldCollapsed(startLine, collapsed) {
-            if (collapsed) {
-                collapsedFoldStarts.add(startLine);
-            } else {
-                collapsedFoldStarts.delete(startLine);
-            }
-        }
-
-        function applyFoldStateToDom() {
-            const codeLines = Array.from(document.querySelectorAll('#source-code .code-line'));
-            const lineNumbers = Array.from(document.querySelectorAll('#line-numbers .line-number'));
-
-            for (const lineEl of codeLines) {
-                const lineNumber = parseInt(lineEl.getAttribute('data-line') || '-1', 10);
-                const hidden = isLineHiddenByFold(lineNumber);
-                lineEl.style.display = hidden ? 'none' : '';
-
-                const toggleEl = lineEl.querySelector('.fold-toggle[data-fold-start]');
-                if (toggleEl) {
-                    const startLine = parseInt(toggleEl.getAttribute('data-fold-start') || '-1', 10);
-                    const collapsed = collapsedFoldStarts.has(startLine);
-                    toggleEl.classList.toggle('is-collapsed', collapsed);
-                    toggleEl.setAttribute('aria-expanded', String(!collapsed));
-                    toggleEl.setAttribute('title', collapsed ? 'Expand folded region' : 'Collapse region');
-                }
-
-                const isCollapsedStart = foldRangeByStart.has(lineNumber) && collapsedFoldStarts.has(lineNumber);
-                lineEl.classList.toggle('fold-collapsed-start', isCollapsedStart);
-            }
-
-            for (const numEl of lineNumbers) {
-                const lineNumber = parseInt(numEl.getAttribute('data-line') || '-1', 10);
-                const hidden = isLineHiddenByFold(lineNumber);
-                numEl.style.display = hidden ? 'none' : '';
-            }
-
-            syncLineHeights();
-        }
-
-        function bindFoldToggleEvents() {
-            const toggles = document.querySelectorAll('#source-code .fold-toggle[data-fold-start]');
-            for (const toggle of toggles) {
-                toggle.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    const startLine = parseInt(toggle.getAttribute('data-fold-start') || '-1', 10);
-                    if (!Number.isFinite(startLine) || startLine < 0) return;
-                    const collapsed = collapsedFoldStarts.has(startLine);
-                    setFoldCollapsed(startLine, !collapsed);
-                    applyFoldStateToDom();
-                });
-            }
-
-            const ellipsisButtons = document.querySelectorAll('#source-code .fold-ellipsis[data-fold-open]');
-            for (const ellipsis of ellipsisButtons) {
-                ellipsis.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    const startLine = parseInt(ellipsis.getAttribute('data-fold-open') || '-1', 10);
-                    if (!Number.isFinite(startLine) || startLine < 0) return;
-                    if (!foldRangeByStart.has(startLine) || !collapsedFoldStarts.has(startLine)) return;
-                    setFoldCollapsed(startLine, false);
-                    applyFoldStateToDom();
-                });
-            }
-        }
-
-        try {
-            applyViewModeLayout(initialViewMode);
-            applySourceEditorMetrics(initialSourceLineHeight);
-            applyResolvedFoldBackground();
-            applySourceTokenThemeVars(initialSourceTokenThemeVars);
-            const sourceCodeEl = document.getElementById('source-code');
-            if (sourceCodeEl) {
-                const initialRawHtml = sourceCodeEl.innerHTML;
-                renderSourceCode(initialRawHtml, initialSourceText, initialSourceLineCount);
-            }
-        } catch (e) {
-            console.error('Error in initial source code render:', e);
-        }
-
-        window.addEventListener('resize', syncLineHeights);
-
-        window.addEventListener('message', event => {
-            const message = event.data;
-            if (message.type === 'update') {
-                document.getElementById('preview-container').innerHTML = message.html;
-                applySourceEditorMetrics(message.sourceLineHeight);
-                applyResolvedFoldBackground();
-                applySourceTokenThemeVars(message.sourceTokenThemeVars);
-                const codeEl = document.getElementById('source-code');
-                if (codeEl) {
-                    renderSourceCode(message.sourceHtml, message.sourceText, message.sourceLineCount);
-                }
-            } else if (message.type === 'setViewMode') {
-                const previewEl = document.getElementById('preview-container');
-                const sourceEl = document.getElementById('source-container');
-                applyViewModeLayout(message.mode);
-                if (message.mode === 'source') {
-                    previewEl.style.display = 'none';
-                    sourceEl.style.display = 'flex';
-                    // DOM??????????????????1tick?????
-                    setTimeout(syncLineHeights, 0);
-                } else {
-                    previewEl.style.display = 'block';
-                    sourceEl.style.display = 'none';
-                }
-            } else if (message.type === 'scroll') {
-                const line = message.line;
-                scrollToLine(line);
-            }
-        });
-
-        window.addEventListener('scroll', () => {
-            if (isSyncingScroll) return;
-            const previewEl = document.getElementById('preview-container');
-            if (previewEl && previewEl.style.display !== 'none') {
-                const element = findElementAtViewportTop();
-                if (element) {
-                    const line = parseInt(element.getAttribute('data-line'), 10);
-                    vscode.postMessage({ command: 'scroll', line: line });
-                }
-            }
-        });
-
-        const sourceContainerEl = document.getElementById('source-container');
-        if (sourceContainerEl) {
-            sourceContainerEl.addEventListener('scroll', () => {
-                if (isSyncingScroll) return;
-                if (!isSourceModeActive()) return;
-                const lineEl = findSourceLineAtTop();
-                if (!lineEl) return;
-                const line = parseInt(lineEl.getAttribute('data-line'), 10);
-                if (Number.isFinite(line)) {
-                    vscode.postMessage({ command: 'scroll', line });
-                }
-            });
-        }
-
-        function findElementByLine(line) {
-            const elements = Array.from(document.querySelectorAll('#preview-container [data-line]'));
-            if (elements.length === 0) return null;
-            let closest = null;
-            let closestDiff = Infinity;
-            for (const el of elements) {
-                const elLine = parseInt(el.getAttribute('data-line'), 10);
-                if (elLine === line) return el;
-                const diff = line - elLine;
-                if (diff >= 0 && diff < closestDiff) {
-                    closestDiff = diff;
-                    closest = el;
-                }
-            }
-            return closest || elements[0];
-        }
-
-        function findSourceLineByLine(line) {
-            const elements = Array.from(document.querySelectorAll('#source-code .code-line[data-line]'));
-            if (elements.length === 0) return null;
-            let closest = null;
-            let closestDiff = Infinity;
-            for (const el of elements) {
-                if (el.style.display === 'none') continue;
-                const elLine = parseInt(el.getAttribute('data-line'), 10);
-                if (!Number.isFinite(elLine)) continue;
-                if (elLine === line) return el;
-                const diff = line - elLine;
-                if (diff >= 0 && diff < closestDiff) {
-                    closestDiff = diff;
-                    closest = el;
-                }
-            }
-            return closest || elements.find(el => el.style.display !== 'none') || null;
-        }
-
-        function findElementAtViewportTop() {
-            const elements = Array.from(document.querySelectorAll('#preview-container [data-line]'));
-            if (elements.length === 0) return null;
-            const viewportTop = window.scrollY || document.documentElement.scrollTop;
-            let closest = null;
-            let closestDiff = Infinity;
-            for (const el of elements) {
-                const diff = Math.abs(el.offsetTop - viewportTop);
-                if (diff < closestDiff) {
-                    closestDiff = diff;
-                    closest = el;
-                }
-            }
-            return closest;
-        }
-
-        function findSourceLineAtTop() {
-            const sourceContainer = document.getElementById('source-container');
-            if (!sourceContainer) return null;
-            const elements = Array.from(document.querySelectorAll('#source-code .code-line[data-line]'));
-            if (elements.length === 0) return null;
-            const viewportTop = sourceContainer.scrollTop;
-            let closest = null;
-            let closestDiff = Infinity;
-            for (const el of elements) {
-                if (el.style.display === 'none') continue;
-                const diff = Math.abs(el.offsetTop - viewportTop);
-                if (diff < closestDiff) {
-                    closestDiff = diff;
-                    closest = el;
-                }
-            }
-            return closest;
-        }
-
-        function isSourceModeActive() {
-            return document.body.classList.contains('mt-source-mode');
-        }
-
-        function scrollToLine(line) {
-            if (isSourceModeActive()) {
-                const sourceContainer = document.getElementById('source-container');
-                const sourceLine = findSourceLineByLine(line);
-                if (!sourceContainer || !sourceLine) return;
-                isSyncingScroll = true;
-                sourceContainer.scrollTop = sourceLine.offsetTop;
-                clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(() => { isSyncingScroll = false; }, 150);
-                return;
-            }
-
-            const previewElement = findElementByLine(line);
-            if (!previewElement) return;
-            isSyncingScroll = true;
-            previewElement.scrollIntoView({ behavior: 'auto', block: 'start' });
-            clearTimeout(scrollTimeout);
-            scrollTimeout = setTimeout(() => { isSyncingScroll = false; }, 150);
-        }
-    </script>
-</body>
-</html>`;
-  }
 }

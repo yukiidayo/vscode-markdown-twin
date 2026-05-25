@@ -28,7 +28,6 @@ export const TARGET_LANGUAGES: Language[] = [
 ];
 
 export const SUPPORTED_LANGUAGES = TARGET_LANGUAGES;
-export const SOURCE_LANGUAGE_CODES = [AUTO_DETECT_LANG_CODE, ...TARGET_LANGUAGES.map(l => l.code)];
 
 export const LEGACY_PREFIX_TO_CODE: Record<string, string> = {
   'auto detect': AUTO_DETECT_LANG_CODE,

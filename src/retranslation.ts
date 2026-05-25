@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { PreviewPanel } from './previewPanel';
 import { TranslationManager } from './translationManager';
-import type { ProviderId } from './providers/ITranslationProvider';
+import { triggerTranslationForDocument, type TranslationTriggerOptions } from './translationTrigger';
 
 export function getCurrentPreviewDocument(): vscode.TextDocument | undefined {
   const activeUri = PreviewPanel.currentPanel?.editorDocumentUri;
@@ -14,18 +14,10 @@ export function getCurrentPreviewDocument(): vscode.TextDocument | undefined {
 
 export async function restartTranslationForCurrentPreview(
   translationManager: TranslationManager,
-  options?: {
-    clearCache?: boolean;
-    overrideProvider?: ProviderId;
-  }
+  options?: TranslationTriggerOptions
 ): Promise<boolean> {
   const doc = getCurrentPreviewDocument();
   if (!doc) return false;
-
-  if (options?.clearCache) {
-    translationManager.clearAllCache();
-  }
-
-  await translationManager.startTranslation(doc, options?.overrideProvider);
+  await triggerTranslationForDocument(translationManager, doc, options);
   return true;
 }

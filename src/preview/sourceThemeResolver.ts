@@ -11,7 +11,7 @@ export class SourceThemeResolver {
 
   resolveTokenThemeVars(themeId: string): Record<string, string> {
     if (this.cachedThemeId === themeId) {
-      // ?????????????????CSS?????????
+      // 同一テーマなら計算済みCSS変数を再利用する
       return this.cachedTokenThemeVars;
     }
 
@@ -21,7 +21,7 @@ export class SourceThemeResolver {
   }
 
   createTextMateTheme(themeId: string): IRawTheme {
-    // ?????????????????????????????????
+    // テーマ定義とユーザー上書きを統合してTextMateテーマを組み立てる
     const tokenRules: ThemeRule[] = [];
 
     const themePath = this.resolveThemeFilePath(themeId);
@@ -99,7 +99,7 @@ export class SourceThemeResolver {
 
     let inherited: ThemeRule[] = [];
     if (themeObj.include) {
-      // VS Code????????????? include ????
+      // VS Codeテーマの継承指定 include も再帰で展開する
       const includePath = path.resolve(path.dirname(themePath), themeObj.include);
       inherited = this.readThemeTokenRules(includePath, visited);
     }

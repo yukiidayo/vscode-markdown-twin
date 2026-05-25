@@ -14,6 +14,7 @@ import { PreviewPanel } from './previewPanel';
 import { t } from './i18n';
 import { isCursor } from './utils';
 import { restartTranslationForCurrentPreview } from './retranslation';
+import { triggerTranslationForDocument } from './translationTrigger';
 
 let translationManager: TranslationManager;
 
@@ -53,8 +54,8 @@ async function applyTargetLanguageByCode(code: string): Promise<void> {
 async function migrateLegacySettings(): Promise<void> {
   const config = vscode.workspace.getConfiguration('markdownTwin');
 
-  // ????:
-  // ????????????????????ID/?????????
+  // 旧設定の移行:
+  // 表示名や旧形式で保存された値を正規化ID/コードへ統一する
   const rawProvider = config.get<string>('provider');
   const providerId = normalizeProviderId(rawProvider);
   if (rawProvider && rawProvider !== providerId) {
@@ -129,14 +130,14 @@ export async function activate(context: vscode.ExtensionContext) {
     const panelExists = PreviewPanel.allPanels.has(targetKey);
 
     if (panelExists) {
-      // ????????+????????????????????
+      // 既存パネルを再利用しつつ、翻訳状態をアクティブに保つ
       await vscode.commands.executeCommand('setContext', 'markdownTwin.translationActive', true);
 
       if (!isCursor() && canCreatePanelFromActiveEditor) {
         await PreviewPanel.createOrShow(context.extensionUri, translationManager, document);
       }
 
-      await translationManager.startTranslation(document);
+      await triggerTranslationForDocument(translationManager, document);
       return;
     }
 
@@ -164,7 +165,7 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    await translationManager.startTranslation(document, providerId);
+    await triggerTranslationForDocument(translationManager, document, { overrideProvider: providerId });
   };
 
   context.subscriptions.push(
@@ -288,7 +289,7 @@ export async function activate(context: vscode.ExtensionContext) {
         PreviewPanel.currentPanel = preferredPanel;
 
         if (translationManager.isActive()) {
-          await translationManager.startTranslation(editor.document);
+          await triggerTranslationForDocument(translationManager, editor.document);
         }
       }
     })

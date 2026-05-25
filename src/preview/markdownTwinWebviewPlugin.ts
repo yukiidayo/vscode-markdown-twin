@@ -30,7 +30,7 @@ export function markdownTwinWebviewPlugin(md: any, options: PluginOptions): any 
       const translation = translationManager.getTranslation(uri, token.content, langCode);
 
       if (mode === 'translation-only') {
-        // ???????????????????????????
+        // 単一表示モードでは原文を翻訳文で直接置き換える
         if (translation) {
           token.content = translation;
           if (token.children) {
@@ -47,7 +47,7 @@ export function markdownTwinWebviewPlugin(md: any, options: PluginOptions): any 
           }
         }
       } else {
-        // ??????????????????????????????????????
+        // バイリンガルモードでは直後に翻訳ブロックを挿入する
         if (translation) {
           const htmlToken = new state.Token('html_block', '', 0);
           htmlToken.content = `<div class="mt-translation">${escapeHtml(translation)}</div>\n`;
