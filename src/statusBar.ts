@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
-import { getLanguageCode } from './languages';
-import { PROVIDER_DISPLAY_NAMES, PROVIDER_ID_BY_NAME } from './providers/ITranslationProvider';
+﻿import * as vscode from 'vscode';
+import { getLanguageCode, normalizeTargetLanguageCode } from './languages';
+import { PROVIDER_DISPLAY_NAMES, normalizeProviderId } from './providers/ITranslationProvider';
 import { t } from './i18n';
 
 export class StatusBar implements vscode.Disposable {
@@ -19,48 +19,47 @@ export class StatusBar implements vscode.Disposable {
     this.activeProviderId = providerId;
   }
 
-  /** 設定値（表示名 or 内部ID）→ 内部ID → 表示名 の順で解決 */
   private resolveProviderName(): string {
     const config = vscode.workspace.getConfiguration('markdownTwin');
     if (this.activeProviderId) {
-      return PROVIDER_DISPLAY_NAMES[this.activeProviderId] ?? this.activeProviderId;
+      const id = normalizeProviderId(this.activeProviderId);
+      return PROVIDER_DISPLAY_NAMES[id];
     }
-    const raw = config.get<string>('provider') ?? 'Azure';
-    const id = PROVIDER_ID_BY_NAME[raw] ?? raw;
-    return PROVIDER_DISPLAY_NAMES[id] ?? raw;
+
+    const id = normalizeProviderId(config.get<string>('provider'));
+    return PROVIDER_DISPLAY_NAMES[id];
   }
 
   showProgress(done: number, total: number): void {
     const config = vscode.workspace.getConfiguration('markdownTwin');
-    const rawTarget = config.get<string>('targetLanguage') ?? 'Korean (한국어)';
-    const targetLang = getLanguageCode(rawTarget);
+    const targetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
+    const targetCode = getLanguageCode(targetLang);
     const providerName = this.resolveProviderName();
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-    this.item.text = `$(sync~spin) Twin ${providerName} ${pct}% (${targetLang})`;
+    this.item.text = `$(sync~spin) Twin ${providerName} ${pct}% (${targetCode})`;
     this.item.tooltip = t('translatingTooltip', done, total);
     this.item.show();
   }
 
   showComplete(mode: 'translation-only' | 'bilingual'): void {
     const config = vscode.workspace.getConfiguration('markdownTwin');
-    const rawTarget = config.get<string>('targetLanguage') ?? 'Korean (한국어)';
-    const targetLang = getLanguageCode(rawTarget);
+    const targetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
+    const targetCode = getLanguageCode(targetLang);
     const providerName = this.resolveProviderName();
     const icon = mode === 'bilingual' ? '$(split-horizontal)' : '$(globe)';
-    this.item.text = `${icon} Twin ${providerName} (${targetLang})`;
-    
+    this.item.text = `${icon} Twin ${providerName} (${targetCode})`;
+
     const modeLabel = mode === 'bilingual' ? t('bilingual') : t('translationOnly');
-    this.item.tooltip = t('statusCompleteTooltip', modeLabel, providerName, targetLang);
+    this.item.tooltip = t('statusCompleteTooltip', modeLabel, providerName, targetCode);
     this.item.show();
   }
 
-  /** 翻訳非アクティブ時: プロバイダー名を常時表示して操作の入口を確保 */
   showOffline(): void {
     const config = vscode.workspace.getConfiguration('markdownTwin');
-    const rawTarget = config.get<string>('targetLanguage') ?? 'Korean (한국어)';
-    const targetLang = getLanguageCode(rawTarget);
+    const targetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
+    const targetCode = getLanguageCode(targetLang);
     const providerName = this.resolveProviderName();
-    this.item.text = `$(globe) Twin: ${providerName} (${targetLang})`;
+    this.item.text = `$(globe) Twin: ${providerName} (${targetCode})`;
     this.item.tooltip = t('statusOfflineTooltip', providerName);
     this.item.show();
   }

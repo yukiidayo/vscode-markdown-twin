@@ -1,7 +1,6 @@
-import { TranslationType } from './type';
+﻿import { TranslationType } from './type';
 
 export const en: TranslationType = {
-  // menus / Quick Pick
   selectSetting: 'Select setting to change',
   provider: 'Provider',
   targetLanguage: 'Language',
@@ -18,15 +17,13 @@ export const en: TranslationType = {
   selectProviderToReEnter: 'Select provider to re-enter API key',
   noSavedKeys: 'No API keys are currently saved.',
 
-  // API Key Manager
-  apiKeyAlreadyConfigured: '•••••••• (Already configured. Enter new key to overwrite)',
+  apiKeyAlreadyConfigured: '******** (Already configured. Enter new key to overwrite)',
   apiKeyPaste: 'Paste your API key here',
   apiKeyEnter: (provider: string) => `Enter your ${provider} API key`,
-  apiKeyAlreadyConfiguredPapago: '•••••••• (Already configured. Format: ClientID:ClientSecret)',
+  apiKeyAlreadyConfiguredPapago: '******** (Already configured. Format: ClientID:ClientSecret)',
   apiKeyFormatPapago: 'Format: ClientID:ClientSecret',
   apiKeyEnterPapago: 'Enter Papago API key as "ClientID:ClientSecret"',
 
-  // Notifications / Messages
   apiKeyNotSet: 'Markdown Twin: API key is not set. Please configure an API key to start translation.',
   apiKeySetButton: 'Set API Key',
   noActiveEditor: 'Markdown Twin: No active editor to preview',
@@ -41,10 +38,9 @@ export const en: TranslationType = {
   copiedToClipboard: 'Translated markdown copied to clipboard!',
   exportedSuccessfully: (filename: string) => `Successfully exported to ${filename}`,
 
-  // Status Bar
-  translatingTooltip: (done: number, total: number) => `Translating… ${done}/${total} | Click to change provider`,
-  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} · ${provider} · ${target} | Click to change provider`,
-  statusOfflineTooltip: (provider: string) => `Markdown Twin: Ready · ${provider} | Click to change provider`,
+  translatingTooltip: (done: number, total: number) => `Translating... ${done}/${total} | Click to change provider`,
+  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} | ${provider} | ${target} | Click to change provider`,
+  statusOfflineTooltip: (provider: string) => `Markdown Twin: Ready | ${provider} | Click to change provider`,
   statusErrorText: (provider: string) => `Twin: Error (${provider})`,
-  statusErrorTooltip: 'Translation error · Check Output panel for details | Click to change provider',
+  statusErrorTooltip: 'Translation error | Check Output panel for details | Click to change provider',
 };

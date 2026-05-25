@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+﻿import * as vscode from 'vscode';
 import { t } from './i18n';
 
 export class ApiKeyManager {
@@ -27,9 +27,9 @@ export class ApiKeyManager {
 
     const key = await vscode.window.showInputBox({
       prompt: promptMessage,
-      placeHolder: placeHolder,
-      password: true,        // マスク表示
-      ignoreFocusOut: true,  // フォーカスが外れても閉じない
+      placeHolder,
+      password: true,
+      ignoreFocusOut: true,
     });
 
     if (key !== undefined) {
@@ -39,6 +39,7 @@ export class ApiKeyManager {
         return trimmed;
       }
     }
+
     return existingKey;
   }
 }

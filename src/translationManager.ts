@@ -1,6 +1,11 @@
-import * as vscode from 'vscode';
+﻿import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
-import { ITranslationProvider, PROVIDER_DISPLAY_NAMES, PROVIDER_ID_BY_NAME } from './providers/ITranslationProvider';
+import {
+  ITranslationProvider,
+  ProviderId,
+  PROVIDER_DISPLAY_NAMES,
+  normalizeProviderId,
+} from './providers/ITranslationProvider';
 import { DeeplProvider } from './providers/deeplProvider';
 import { PapagoProvider } from './providers/papagoProvider';
 import { GoogleCloudProvider } from './providers/googleCloudProvider';
@@ -8,15 +13,21 @@ import { MicrosoftProvider, AzureRegionError } from './providers/microsoftProvid
 import { ApiKeyManager } from './apiKeyManager';
 import { StatusBar } from './statusBar';
 import { shouldTranslate, splitTranslatableParts, joinTranslatedParts, EXCLUDED_TOKEN_TYPES } from './languageDetector';
-import { getLanguageISO } from './languages';
+import { getLanguageISO, normalizeTargetLanguageCode } from './languages';
 import { t } from './i18n';
 import { PreviewPanel } from './previewPanel';
 
 type Mode = 'translation-only' | 'bilingual';
 
+type Replacement = {
+  start: number;
+  end: number;
+  text: string;
+};
+
 export class TranslationManager implements vscode.Disposable {
-  // 原文テキスト -> 翻訳テキストの翻訳メモリキャッシュ
-  // Map<uriString@langCode, Map<originalText, translatedText>>
+  // ??????????:
+  // Map<`${uri}@${lang}`, Map<??, ???>>
   private cache = new Map<string, Map<string, string>>();
   private translationActive = false;
   private translatingNow = false;
@@ -24,9 +35,8 @@ export class TranslationManager implements vscode.Disposable {
   private statusBar: StatusBar | null = null;
   private md = new MarkdownIt();
   private currentTranslationSessionId = 0;
-  private outputChannel = vscode.window.createOutputChannel("Markdown Twin");
+  private outputChannel = vscode.window.createOutputChannel('Markdown Twin');
 
-  // Webviewの更新連動用イベント
   private onTranslationUpdatedEmitter = new vscode.EventEmitter<vscode.Uri | undefined>();
   readonly onTranslationUpdated = this.onTranslationUpdatedEmitter.event;
 
@@ -34,10 +44,8 @@ export class TranslationManager implements vscode.Disposable {
     const config = vscode.workspace.getConfiguration('markdownTwin');
     const rawMode = config.get<string>('defaultMode') ?? 'Translation Only';
     this.currentMode = rawMode === 'Bilingual' ? 'bilingual' : 'translation-only';
-    this.logInfo("Markdown Twin active.");
+    this.logInfo('Markdown Twin active.');
   }
-
-
 
   logWarning(message: string): void {
     const timestamp = new Date().toLocaleTimeString();
@@ -78,20 +86,16 @@ export class TranslationManager implements vscode.Disposable {
     return this.translatingNow;
   }
 
-
-
   getMode(): Mode {
     return this.currentMode;
   }
 
   toggleMode(): void {
-    this.currentMode =
-      this.currentMode === 'translation-only' ? 'bilingual' : 'translation-only';
+    this.currentMode = this.currentMode === 'translation-only' ? 'bilingual' : 'translation-only';
     this.statusBar?.update(this.currentMode);
-    this.onTranslationUpdatedEmitter.fire(undefined); // Webview側へ通知して即時再描画
+    this.onTranslationUpdatedEmitter.fire(undefined);
   }
 
-  // オンデマンドでキャッシュを引き当てて結合し翻訳文を返す
   getTranslation(uri: vscode.Uri, originalContent: string, langCode: string): string | null {
     const cacheKey = `${uri.toString()}@${langCode}`;
     const docCache = this.cache.get(cacheKey);
@@ -100,10 +104,9 @@ export class TranslationManager implements vscode.Disposable {
     const parts = splitTranslatableParts(originalContent);
     const translationSlice = new Map<number, string>();
     let transOffset = 0;
-    
+
     let allTranslated = true;
-    for (let k = 0; k < parts.length; k++) {
-      const part = parts[k];
+    for (const part of parts) {
       if (part.translate) {
         const cached = docCache.get(part.text);
         if (cached !== undefined) {
@@ -116,7 +119,6 @@ export class TranslationManager implements vscode.Disposable {
     }
 
     if (!allTranslated) return null;
-
     return joinTranslatedParts(parts, translationSlice);
   }
 
@@ -125,40 +127,32 @@ export class TranslationManager implements vscode.Disposable {
     this.translationActive = true;
 
     const config = vscode.workspace.getConfiguration('markdownTwin');
-    // 設定値は表示名（例: "Azure"）なので内部IDに変換。
-    // overrideProvider は内部IDで渡される（providerSelector経由）。
-    const rawProvider = overrideProvider ?? config.get<string>('provider') ?? 'Azure';
-    const providerName = PROVIDER_ID_BY_NAME[rawProvider] ?? rawProvider;
+    const providerId = normalizeProviderId(overrideProvider ?? config.get<string>('provider'));
+    this.statusBar?.setActiveProvider(providerId);
 
-    this.statusBar?.setActiveProvider(providerName);
-
-    const rawSource = config.get<string>('sourceLanguage') ?? 'Japanese (日本語)';
-    const rawTarget = config.get<string>('targetLanguage') ?? 'Korean (한국어)';
-    const sourceLang = getLanguageISO(rawSource);
-    const defaultTargetLang = getLanguageISO(rawTarget);
+    const sourceLang = getLanguageISO(config.get<string>('sourceLanguage') ?? 'ja');
+    const defaultTargetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
     const batchSize = config.get<number>('batchSize') ?? 10;
 
-    // 現在オープンされているプレビューパネルの中から、このドキュメント用として開かれている言語だけを動的に対象にする
     const docUriStr = document.uri.toString();
+    // ???????????????????????????????
     const panelsForDoc = Array.from(PreviewPanel.allPanels.values()).filter(
       p => p.editorDocumentUri.toString() === docUriStr
     );
-    const targetLangs = panelsForDoc.length > 0
-      ? panelsForDoc.map(p => p.langCode)
-      : [defaultTargetLang];
+    const targetLangs = panelsForDoc.length > 0 ? panelsForDoc.map(p => p.langCode) : [defaultTargetLang];
 
-    const requiresKey = ['deepl', 'papago', 'microsoft', 'google-cloud'].includes(providerName);
+    const requiresKey = ['deepl', 'papago', 'microsoft', 'google-cloud'].includes(providerId);
     if (requiresKey) {
-      const key = await this.apiKeyManager.getKey(providerName);
+      const key = await this.apiKeyManager.getKey(providerId);
       if (!key) {
-        const displayName = PROVIDER_DISPLAY_NAMES[providerName] ?? providerName;
+        const displayName = PROVIDER_DISPLAY_NAMES[providerId] ?? providerId;
         this.logError(t('apiKeyNotSetForProvider', displayName), undefined, false);
         this.statusBar?.showError();
         return;
       }
     }
 
-    const provider = await this.buildProvider(providerName);
+    const provider = await this.buildProvider(providerId);
     if (!provider || this.currentTranslationSessionId !== sessionId) {
       this.statusBar?.showError();
       return;
@@ -170,19 +164,24 @@ export class TranslationManager implements vscode.Disposable {
     );
 
     if (totalCount === 0) {
-      // すべての言語がキャッシュから引き当てられた場合
       this.statusBar?.showComplete(this.currentMode);
       this.onTranslationUpdatedEmitter.fire(document.uri);
       return;
     }
 
     await this.executeTranslationLoop(
-      sessionId, provider, providerName, document.uri,
-      sourceLang, targetLangs, langToTranslateMap, totalCount, batchSize
+      sessionId,
+      provider,
+      PROVIDER_DISPLAY_NAMES[providerId] ?? providerId,
+      document.uri,
+      sourceLang,
+      targetLangs,
+      langToTranslateMap,
+      totalCount,
+      batchSize
     );
   }
 
-  /** AST からの翻訳対象テキスト抽出 */
   private extractTranslatableTexts(document: vscode.TextDocument): Set<string> {
     const text = document.getText();
     const tokens = this.md.parse(text, {});
@@ -197,10 +196,10 @@ export class TranslationManager implements vscode.Disposable {
         if (part.translate) result.add(part.text);
       }
     }
+
     return result;
   }
 
-  /** 言語ごとの未翻訳テキスト検出・キャッシュGC */
   private preparePendingTranslations(
     documentUri: vscode.Uri,
     targetLangs: string[],
@@ -217,19 +216,19 @@ export class TranslationManager implements vscode.Disposable {
       }
       const docCache = this.cache.get(uriKey)!;
 
-      // メモリリーク対策 (GC): ドキュメントに存在しなくなったキャッシュを削除
+      // ??????????????GC??????????????
       for (const cachedText of docCache.keys()) {
         if (!currentTexts.has(cachedText)) docCache.delete(cachedText);
       }
 
-      const pending = allTexts.filter(t => !docCache.has(t));
+      const pending = allTexts.filter(text => !docCache.has(text));
       langToTranslateMap.set(targetLang, pending);
       totalCount += pending.length;
     }
+
     return { langToTranslateMap, totalCount };
   }
 
-  /** バッチ非同期API呼び出しと進捗管理 */
   private async executeTranslationLoop(
     sessionId: number,
     provider: ITranslationProvider,
@@ -245,7 +244,7 @@ export class TranslationManager implements vscode.Disposable {
     let accumulatedDone = 0;
     let fatalError = false;
     this.statusBar?.showProgress(accumulatedDone, totalCount);
-    this.onTranslationUpdatedEmitter.fire(documentUri); // シマー開始
+    this.onTranslationUpdatedEmitter.fire(documentUri);
 
     try {
       for (const targetLang of targetLangs) {
@@ -260,15 +259,14 @@ export class TranslationManager implements vscode.Disposable {
           if (fatalError || !this.translationActive || this.currentTranslationSessionId !== sessionId) break;
           const batch = textsToTranslate.slice(i, i + batchSize);
 
-          let translated: string[] = [];
           try {
-            translated = await provider.translate(batch, sourceLang, targetLang);
+            const translated = await provider.translate(batch, sourceLang, targetLang);
             for (let k = 0; k < batch.length; k++) {
               docCache.set(batch[k], translated[k] ?? batch[k]);
             }
           } catch (err: any) {
             if (err instanceof AzureRegionError) {
-              // リージョン設定ミス: 致命的エラーのため「設定を開く」ボタン付き通知を出してループ停止
+              // ???????????????????????????????????
               const timestamp = new Date().toLocaleTimeString();
               this.outputChannel.appendLine(`[${timestamp}] [ERROR] ${err.message}`);
               fatalError = true;
@@ -278,19 +276,17 @@ export class TranslationManager implements vscode.Disposable {
                 t('openSettings')
               );
               if (action === t('openSettings')) {
-                vscode.commands.executeCommand('workbench.action.openSettings', 'markdownTwin.azureRegion');
+                void vscode.commands.executeCommand('workbench.action.openSettings', 'markdownTwin.azureRegion');
               }
             } else if (err?.name === 'TooManyRequestsError') {
-              // レート制限（429）: 一時的な制限のためダイアログは出さずログのみ
-              // キャッシュには保存しない（デバウンス後に再試行される）
+              // ????????????????????????????????????
               this.logWarning(t('rateLimitReached'));
               this.statusBar?.showError();
             } else {
-              // 設定ミス・ネットワーク障害など本物のエラー → ダイアログ表示
+              // ??????????????????????????????????
               this.logError(t('translationFailed', providerName, targetLang), err);
-              // フォールバック: 原文をキャッシュに入れてスキップ
-              for (let k = 0; k < batch.length; k++) {
-                docCache.set(batch[k], batch[k]);
+              for (const text of batch) {
+                docCache.set(text, text);
               }
             }
           }
@@ -313,33 +309,29 @@ export class TranslationManager implements vscode.Disposable {
     }
   }
 
-  // キャッシュを破棄せず、翻訳メモリを維持したまま差分だけを再翻訳する
   private debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   invalidateCache(uri: vscode.Uri): void {
     if (this.translationActive) {
       const uriStr = uri.toString();
-      let timer = this.debounceTimers.get(uriStr);
-      if (timer) {
-        clearTimeout(timer);
+      const existing = this.debounceTimers.get(uriStr);
+      if (existing) {
+        clearTimeout(existing);
       }
+
+      // ??????URI??????????????API??????????
       const delay = (vscode.workspace.getConfiguration('markdownTwin').get<number>('debounceDelay') ?? 2) * 1000;
-      timer = setTimeout(() => {
+      const timer = setTimeout(() => {
         this.debounceTimers.delete(uriStr);
-        // activeTextEditor に依存せず、uri から直接ドキュメントを解決する
-        const doc = vscode.workspace.textDocuments.find(
-          d => d.uri.toString() === uriStr
-        );
+        const doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === uriStr);
         if (doc) {
-          this.startTranslation(doc);
+          void this.startTranslation(doc);
         }
       }, delay);
       this.debounceTimers.set(uriStr, timer);
     }
   }
 
-
-  // ファイルが閉じられたときに、メモリを完全にクリーンアップして解放
   closeDocument(uri: vscode.Uri): void {
     const uriStr = uri.toString();
     const timer = this.debounceTimers.get(uriStr);
@@ -348,7 +340,7 @@ export class TranslationManager implements vscode.Disposable {
       this.debounceTimers.delete(uriStr);
     }
 
-    const prefix = uriStr + '@';
+    const prefix = `${uriStr}@`;
     let count = 0;
     for (const key of this.cache.keys()) {
       if (key.startsWith(prefix)) {
@@ -356,12 +348,12 @@ export class TranslationManager implements vscode.Disposable {
         count++;
       }
     }
+
     if (count > 0) {
       this.logInfo(`Cache released for closed document (all languages): ${uri.toString()}`);
     }
   }
 
-  // 明示的な停止時はすべてのキャッシュメモリをクリア・解放
   stopTranslation(): void {
     this.translationActive = false;
     this.translatingNow = false;
@@ -374,53 +366,129 @@ export class TranslationManager implements vscode.Disposable {
     this.onTranslationUpdatedEmitter.fire(undefined);
   }
 
-  // プロバイダー変更時も翻訳セッションと古いキャッシュをクリア
   clearAllCache(): void {
     this.cache.clear();
     this.onTranslationUpdatedEmitter.fire(undefined);
   }
 
-  /** 翻訳キャッシュを適用した完成版Markdownドキュメントの生成 */
-  generateTranslatedMarkdown(document: vscode.TextDocument, langCode: string): string {
-    const originalText = document.getText();
-    const mode = this.getMode();
-    const cacheKey = `${document.uri.toString()}@${langCode}`;
-    const docCache = this.cache.get(cacheKey);
-    if (!docCache) return originalText;
+  private collectInlineReplacements(
+    document: vscode.TextDocument,
+    source: string,
+    langCode: string,
+    mode: Mode
+  ): Replacement[] {
+    // AST????????????????????????
+    // ?????????????????
+    const lineOffsets = this.buildLineOffsets(source);
+    const tokens = this.md.parse(source, {});
+    const rangeCursor = new Map<string, number>();
+    const replacements: Replacement[] = [];
 
-    // 翻訳対象のテキストブロック（原文）を抽出
-    const translatableTexts = Array.from(this.extractTranslatableTexts(document));
-    
-    // 長い文章から順番に置換して部分一致の誤置換を防止
-    translatableTexts.sort((a, b) => b.length - a.length);
+    for (const token of tokens) {
+      if (EXCLUDED_TOKEN_TYPES.includes(token.type as any)) continue;
+      if (token.type !== 'inline') continue;
 
-    let resultMarkdown = originalText;
-    for (const text of translatableTexts) {
-      const translated = docCache.get(text);
-      if (!translated || translated === text) continue;
+      const translation = this.getTranslation(document.uri, token.content, langCode);
+      if (!translation || translation === token.content) continue;
+      if (!Array.isArray(token.map) || token.map.length < 2) continue;
 
-      if (mode === 'translation-only') {
-        resultMarkdown = resultMarkdown.split(text).join(translated);
-      } else {
-        // 対訳モード: 原文の直後に改行してイタリック形式で翻訳を挿入
-        const bilingualReplacement = `${text}\n\n*${translated}*`;
-        resultMarkdown = resultMarkdown.split(text).join(bilingualReplacement);
-      }
+      const [startLine, endLine] = token.map;
+      const rangeStart = lineOffsets[startLine] ?? 0;
+      const rangeEnd = lineOffsets[endLine] ?? source.length;
+      const rangeKey = `${startLine}:${endLine}`;
+      // ?????????????????????????????????????????
+      const searchStart = Math.max(rangeStart, rangeCursor.get(rangeKey) ?? rangeStart);
+
+      const hitIndex = source.indexOf(token.content, searchStart);
+      if (hitIndex < 0) continue;
+      if (hitIndex + token.content.length > rangeEnd) continue;
+
+      rangeCursor.set(rangeKey, hitIndex + token.content.length);
+
+      const replacementText = mode === 'translation-only'
+        ? translation
+        : `${token.content}\n\n*${translation}*`;
+
+      replacements.push({
+        start: hitIndex,
+        end: hitIndex + token.content.length,
+        text: replacementText,
+      });
     }
-    return resultMarkdown;
+
+    return this.normalizeReplacements(replacements);
   }
 
-  private async buildProvider(name: string): Promise<ITranslationProvider | null> {
-    const getKey = async (id: string) => {
-      const key = await this.apiKeyManager.getKey(id);
+  private normalizeReplacements(replacements: Replacement[]): Replacement[] {
+    // ??????????????????????????????????
+    const ordered = replacements.sort((a, b) => {
+      if (a.start === b.start) return b.end - a.end;
+      return a.start - b.start;
+    });
+
+    const result: Replacement[] = [];
+    let lastEnd = -1;
+    for (const replacement of ordered) {
+      if (replacement.start < lastEnd) {
+        continue;
+      }
+      result.push(replacement);
+      lastEnd = replacement.end;
+    }
+
+    return result;
+  }
+
+  private applyReplacements(source: string, replacements: Replacement[]): string {
+    // ?????????????????????????????
+    let output = source;
+    for (let i = replacements.length - 1; i >= 0; i--) {
+      const replacement = replacements[i];
+      output = output.slice(0, replacement.start) + replacement.text + output.slice(replacement.end);
+    }
+    return output;
+  }
+
+  private buildLineOffsets(source: string): number[] {
+    const offsets: number[] = [0];
+    for (let i = 0; i < source.length; i++) {
+      if (source[i] === '\n') {
+        offsets.push(i + 1);
+      }
+    }
+    offsets.push(source.length);
+    return offsets;
+  }
+
+  generateTranslatedMarkdown(document: vscode.TextDocument, langCode: string): string {
+    const originalText = document.getText();
+    const cacheKey = `${document.uri.toString()}@${langCode}`;
+    const docCache = this.cache.get(cacheKey);
+    if (!docCache || docCache.size === 0) return originalText;
+
+    const replacements = this.collectInlineReplacements(document, originalText, langCode, this.getMode());
+    if (replacements.length === 0) return originalText;
+
+    return this.applyReplacements(originalText, replacements);
+  }
+
+  private async buildProvider(id: ProviderId): Promise<ITranslationProvider | null> {
+    const getKey = async (providerId: ProviderId) => {
+      const key = await this.apiKeyManager.getKey(providerId);
       return key ?? '';
     };
-    switch (name) {
-      case 'deepl':             return new DeeplProvider(await getKey('deepl'));
-      case 'papago':            return new PapagoProvider(await getKey('papago'));
-      case 'microsoft':         return new MicrosoftProvider(await getKey('microsoft'));
-      case 'google-cloud':  return new GoogleCloudProvider(await getKey('google-cloud'));
-      default: return null;
+
+    switch (id) {
+      case 'deepl':
+        return new DeeplProvider(await getKey('deepl'));
+      case 'papago':
+        return new PapagoProvider(await getKey('papago'));
+      case 'microsoft':
+        return new MicrosoftProvider(await getKey('microsoft'));
+      case 'google-cloud':
+        return new GoogleCloudProvider(await getKey('google-cloud'));
+      default:
+        return null;
     }
   }
 }

@@ -160,22 +160,22 @@
       },
       {
         "command": "markdownTwin.copyTranslatedMarkdown",
-        "title": "Copy Translated Markdown",
+        "title": "%markdownTwin.commands.copyTranslatedMarkdown%",
         "icon": "$(copy)"
       },
       {
         "command": "markdownTwin.exportTranslatedMarkdown",
-        "title": "Export Translated Markdown",
+        "title": "%markdownTwin.commands.exportTranslatedMarkdown%",
         "icon": "$(save)"
       },
       {
         "command": "markdownTwin.openTranslatedSource",
-        "title": "Show Translated Source",
+        "title": "%markdownTwin.commands.openTranslatedSource%",
         "icon": "$(code)"
       },
       {
         "command": "markdownTwin.openPreviewFromSource",
-        "title": "Show Translated Preview",
+        "title": "%markdownTwin.commands.openPreviewFromSource%",
         "icon": "$(eye)"
       }
     ],
@@ -284,14 +284,20 @@
         "markdownTwin.provider": {
           "type": "string",
           "enum": [
+            "google-cloud",
+            "microsoft",
+            "deepl",
+            "papago"
+          ],
+          "default": "microsoft",
+          "description": "%markdownTwin.provider.description%",
+          "order": 1,
+          "enumItemLabels": [
             "Google Cloud",
             "Azure",
             "DeepL",
             "Papago"
-          ],
-          "default": "Azure",
-          "description": "%markdownTwin.provider.description%",
-          "order": 1
+          ]
         },
         "markdownTwin.azureRegion": {
           "type": "string",
@@ -302,47 +308,80 @@
         "markdownTwin.sourceLanguage": {
           "type": "string",
           "enum": [
-            "Japanese (日本語)",
-            "Auto Detect (自動検出)",
+            "auto",
+            "ja",
+            "en",
+            "ko",
+            "es",
+            "fr",
+            "de",
+            "it",
+            "pt",
+            "ru",
+            "vi",
+            "th",
+            "id",
+            "ar",
+            "hi"
+          ],
+          "default": "ja",
+          "description": "%markdownTwin.sourceLanguage.description%",
+          "order": 3,
+          "enumItemLabels": [
+            "Auto Detect",
+            "Japanese (???)",
             "English (English)",
-            "Korean (한국어)",
-            "Spanish (Español)",
-            "French (Français)",
+            "Korean (???)",
+            "Spanish (Espa?ol)",
+            "French (Fran?ais)",
             "German (Deutsch)",
             "Italian (Italiano)",
-            "Portuguese (Português)",
-            "Russian (Русский)",
-            "Vietnamese (Tiếng Việt)",
-            "Thai (ไทย)",
+            "Portuguese (Portugu?s)",
+            "Russian (???????)",
+            "Vietnamese (Ti?ng Vi?t)",
+            "Thai (???)",
             "Indonesian (Bahasa Indonesia)",
-            "Arabic (العربية)",
-            "Hindi (हिन्दी)"
-          ],
-          "default": "Japanese (日本語)",
-          "description": "%markdownTwin.sourceLanguage.description%",
-          "order": 3
+            "Arabic (???????)",
+            "Hindi (??????)"
+          ]
         },
         "markdownTwin.targetLanguage": {
           "type": "string",
           "enum": [
-            "Korean (한국어)",
+            "ko",
+            "en",
+            "ja",
+            "es",
+            "fr",
+            "de",
+            "it",
+            "pt",
+            "ru",
+            "vi",
+            "th",
+            "id",
+            "ar",
+            "hi"
+          ],
+          "default": "ko",
+          "description": "%markdownTwin.targetLanguage.description%",
+          "order": 4,
+          "enumItemLabels": [
+            "Korean (???)",
             "English (English)",
-            "Japanese (日本語)",
-            "Spanish (Español)",
-            "French (Français)",
+            "Japanese (???)",
+            "Spanish (Espa?ol)",
+            "French (Fran?ais)",
             "German (Deutsch)",
             "Italian (Italiano)",
-            "Portuguese (Português)",
-            "Russian (Русский)",
-            "Vietnamese (Tiếng Việt)",
-            "Thai (ไทย)",
+            "Portuguese (Portugu?s)",
+            "Russian (???????)",
+            "Vietnamese (Ti?ng Vi?t)",
+            "Thai (???)",
             "Indonesian (Bahasa Indonesia)",
-            "Arabic (العربية)",
-            "Hindi (हिन्दी)"
-          ],
-          "default": "Korean (한국어)",
-          "description": "%markdownTwin.targetLanguage.description%",
-          "order": 4
+            "Arabic (???????)",
+            "Hindi (??????)"
+          ]
         },
         "markdownTwin.defaultMode": {
           "type": "string",

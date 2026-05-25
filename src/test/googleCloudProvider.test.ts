@@ -1,4 +1,4 @@
-import { GoogleCloudProvider } from '../providers/googleCloudProvider';
+﻿import { GoogleCloudProvider } from '../providers/googleCloudProvider';
 
 describe('GoogleCloudProvider Tests', () => {
   let provider: GoogleCloudProvider;
@@ -21,7 +21,7 @@ describe('GoogleCloudProvider Tests', () => {
   it('should successfully translate texts using mock fetch', async () => {
     const mockTranslations = [
       { translatedText: '안녕하세요' },
-      { translatedText: '세계' }
+      { translatedText: '세계' },
     ];
 
     global.fetch = jest.fn().mockImplementation(() =>
@@ -29,9 +29,9 @@ describe('GoogleCloudProvider Tests', () => {
         ok: true,
         json: () => Promise.resolve({
           data: {
-            translations: mockTranslations
-          }
-        })
+            translations: mockTranslations,
+          },
+        }),
       })
     ) as any;
 
@@ -46,8 +46,8 @@ describe('GoogleCloudProvider Tests', () => {
           q: ['Hello', 'World'],
           target: 'ko',
           format: 'text',
-          source: 'en'
-        })
+          source: 'en',
+        }),
       })
     );
   });
@@ -59,9 +59,9 @@ describe('GoogleCloudProvider Tests', () => {
         statusText: 'Bad Request',
         json: () => Promise.resolve({
           error: {
-            message: 'Invalid API Key'
-          }
-        })
+            message: 'Invalid API Key',
+          },
+        }),
       })
     ) as any;
 

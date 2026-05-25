@@ -99,7 +99,7 @@ body.mt-preview-mode::before {
 }
 
 #line-numbers {
-  padding: 8px 16px var(--mt-scroll-beyond-last-line) 0;
+  padding: 8px 16px var(--mt-scroll-beyond-last-line) 10px;
   text-align: right;
   color: var(--vscode-editorLineNumber-foreground);
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
@@ -119,7 +119,7 @@ body.mt-preview-mode::before {
   display: flex;
   justify-content: flex-end;
   align-items: flex-start;
-  line-height: normal;
+  line-height: var(--mt-source-line-height, 22px);
 }
 
 pre.language-markdown {
@@ -129,7 +129,7 @@ pre.language-markdown {
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
   font-size: var(--vscode-editor-font-size, 14px);
   font-weight: var(--vscode-editor-font-weight, normal);
-  line-height: var(--vscode-editor-line-height, 1.5);
+  line-height: var(--mt-source-line-height, 22px);
   padding: 8px 14px var(--mt-scroll-beyond-last-line) 14px;
   margin: 0;
   border-radius: 0;
@@ -142,14 +142,120 @@ pre.language-markdown {
   box-sizing: border-box;
 }
 
+#source-code {
+  display: block;
+  width: 100%;
+  color: var(--vscode-editor-foreground);
+}
+
 .code-line {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
   white-space: pre-wrap;
   word-wrap: break-word;
   word-break: break-all;
-  min-height: 1.5em;
+  min-height: var(--mt-source-line-height, 22px);
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+.code-line-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ordered-list-line .code-line-content {
+  padding-left: 8px;
+}
+
+.fold-toggle {
+  width: 14px;
+  min-width: 14px;
+  height: var(--mt-source-line-height, 22px);
+  margin-right: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vscode-editorGutter-foldingControlForeground, var(--vscode-editorLineNumber-foreground, var(--vscode-editor-foreground)));
+  cursor: pointer;
+  line-height: var(--mt-source-line-height, 22px);
+  text-align: center;
+  font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
+  position: relative;
+}
+
+.fold-toggle:hover {
+  color: var(--vscode-editorGutter-foldingControlForeground, var(--vscode-editorLineNumber-activeForeground, var(--vscode-editor-foreground)));
+}
+
+.fold-toggle-spacer {
+  visibility: hidden;
+  cursor: default;
+  pointer-events: none;
+}
+
+.fold-toggle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translate(-56%, -50%) rotate(-45deg);
+  transform-origin: center;
+}
+
+.fold-toggle:not(.is-collapsed)::before {
+  transform: translate(-50%, -80%) rotate(45deg);
+}
+
+.code-line.fold-collapsed-start .folded-summary {
+  display: inline-flex;
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  background-color: var(--mt-fold-bg, var(--vscode-editor-foldBackground, var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.22))));
+  border-radius: 2px;
+  padding-right: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.code-line.fold-collapsed-start .code-line-content {
+  display: inline-block;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  word-break: normal;
+  text-overflow: clip;
+}
+
+.fold-ellipsis {
+  position: static;
+  transform: none;
+  min-width: 0;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vscode-descriptionForeground, var(--vscode-editorLineNumber-foreground, var(--vscode-editor-foreground)));
+  font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
+  font-size: 0.82em;
+  letter-spacing: 0;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.95;
+  white-space: nowrap;
 }
 
 /* VS Code の公式トークンカラー変数（CSS Variables）を Prism トークンクラスにマッピング */

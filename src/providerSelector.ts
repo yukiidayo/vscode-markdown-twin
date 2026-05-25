@@ -1,23 +1,31 @@
-import * as vscode from 'vscode';
+﻿import * as vscode from 'vscode';
 import { ApiKeyManager } from './apiKeyManager';
 import { TranslationManager } from './translationManager';
 import { StatusBar } from './statusBar';
-import { PROVIDER_ID_BY_NAME, PROVIDER_DISPLAY_NAMES } from './providers/ITranslationProvider';
-import { SUPPORTED_LANGUAGES, getLanguageCodeFromLabel } from './languages';
+import {
+  ProviderId,
+  PROVIDER_DISPLAY_NAMES,
+  normalizeProviderId,
+} from './providers/ITranslationProvider';
+import {
+  SUPPORTED_LANGUAGES,
+  getLanguageLabel,
+  normalizeTargetLanguageCode,
+} from './languages';
 import { PreviewPanel } from './previewPanel';
 import { t } from './i18n';
 
 interface ProviderItem extends vscode.QuickPickItem {
-  id: string;
+  id: ProviderId;
   displayName: string;
   requiresKey: boolean;
 }
 
-export const PROVIDER_DEFS: { id: string; displayName: string; requiresKey: boolean }[] = [
-  { id: 'google-cloud',  displayName: 'Google Cloud',  requiresKey: true  },
-  { id: 'microsoft',     displayName: 'Azure',         requiresKey: true  },
-  { id: 'deepl',         displayName: 'DeepL',         requiresKey: true  },
-  { id: 'papago',        displayName: 'Papago',        requiresKey: true  },
+export const PROVIDER_DEFS: Array<{ id: ProviderId; displayName: string; requiresKey: boolean }> = [
+  { id: 'google-cloud', displayName: 'Google Cloud', requiresKey: true },
+  { id: 'microsoft', displayName: 'Azure', requiresKey: true },
+  { id: 'deepl', displayName: 'DeepL', requiresKey: true },
+  { id: 'papago', displayName: 'Papago', requiresKey: true },
 ];
 
 export class ProviderSelector {
@@ -28,19 +36,14 @@ export class ProviderSelector {
     private extensionUri: vscode.Uri
   ) {}
 
-  // ─────────────────────────────────────────────
-  // ステータスバークリック → 2段階メニュー
-  // ─────────────────────────────────────────────
   async showMenu(): Promise<void> {
     while (true) {
       const config = vscode.workspace.getConfiguration('markdownTwin');
-      const rawProvider = config.get<string>('provider') ?? 'Azure';
-      const displayProvider = PROVIDER_DISPLAY_NAMES[rawProvider] ?? rawProvider;
-      const rawLang = config.get<string>('targetLanguage') ?? 'Korean (한국어)';
+      const providerId = normalizeProviderId(config.get<string>('provider'));
+      const targetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
 
-      const langCode = getLanguageCodeFromLabel(rawLang);
-      const langFlagUri = vscode.Uri.joinPath(this.extensionUri, 'media', 'flags', `${langCode}.svg`);
-
+      const displayProvider = PROVIDER_DISPLAY_NAMES[providerId];
+      const langFlagUri = vscode.Uri.joinPath(this.extensionUri, 'media', 'flags', `${targetLang}.svg`);
       const mode = this.translationManager.getMode();
       const modeLabel = mode === 'bilingual' ? t('bilingual') : t('translationOnly');
       const modeIcon = mode === 'bilingual' ? '$(split-horizontal)' : '$(file)';
@@ -48,9 +51,9 @@ export class ProviderSelector {
       type TopItem = vscode.QuickPickItem & { action: 'provider' | 'language' | 'mode' };
       const top = await vscode.window.showQuickPick<TopItem>(
         [
-          { label: `$(globe) ${t('provider')}`, description: displayProvider,          action: 'provider' },
-          { label: `${t('targetLanguage')}`,          description: rawLang,                  action: 'language', iconPath: langFlagUri },
-          { label: `${modeIcon} ${t('mode')}`,  description: modeLabel,               action: 'mode' },
+          { label: `$(globe) ${t('provider')}`, description: displayProvider, action: 'provider' },
+          { label: t('targetLanguage'), description: getLanguageLabel(targetLang), action: 'language', iconPath: langFlagUri },
+          { label: `${modeIcon} ${t('mode')}`, description: modeLabel, action: 'mode' },
         ],
         { title: 'Markdown Twin', placeHolder: t('selectSetting') }
       );
@@ -69,20 +72,14 @@ export class ProviderSelector {
         return;
       }
 
-      if (top.action === 'mode') {
-        this.translationManager.toggleMode();
-        return;
-      }
+      this.translationManager.toggleMode();
+      return;
     }
   }
 
-  // ─────────────────────────────────────────────
-  // 初回セットアップ用（プロバイダー選択のみ）
-  // ─────────────────────────────────────────────
-  async show(): Promise<string | undefined> {
+  async show(): Promise<ProviderId | undefined> {
     const config = vscode.workspace.getConfiguration('markdownTwin');
-    const rawCurrent = config.get<string>('provider') ?? 'Azure';
-    const currentId  = PROVIDER_ID_BY_NAME[rawCurrent] ?? rawCurrent;
+    const currentId = normalizeProviderId(config.get<string>('provider'));
 
     const selected = await vscode.window.showQuickPick(
       await this._buildProviderItems(currentId),
@@ -94,18 +91,14 @@ export class ProviderSelector {
     return selected.id;
   }
 
-  // ─────────────────────────────────────────────
-  // プロバイダーサブメニュー（Back + Reset付き）
-  // ─────────────────────────────────────────────
-  private async _showProviderPicker(): Promise<string | undefined> {
-    const config     = vscode.workspace.getConfiguration('markdownTwin');
-    const rawCurrent = config.get<string>('provider') ?? 'Azure';
-    const currentId  = PROVIDER_ID_BY_NAME[rawCurrent] ?? rawCurrent;
+  private async _showProviderPicker(): Promise<string | ProviderId | undefined> {
+    const config = vscode.workspace.getConfiguration('markdownTwin');
+    const currentId = normalizeProviderId(config.get<string>('provider'));
 
-    const BACK:  ProviderItem = { label: `$(arrow-left) ${t('back')}`,    id: '__back__',  displayName: '', requiresKey: false };
-    const SEP1:  ProviderItem = { label: '', kind: vscode.QuickPickItemKind.Separator, id: '', displayName: '', requiresKey: false };
-    const SEP2:  ProviderItem = { label: '', kind: vscode.QuickPickItemKind.Separator, id: '', displayName: '', requiresKey: false };
-    const RESET: ProviderItem = { label: `$(key) ${t('resetApiKey')}`, id: '__reset__', displayName: '', requiresKey: false };
+    const BACK: vscode.QuickPickItem & { id: string } = { label: `$(arrow-left) ${t('back')}`, id: '__back__' };
+    const SEP1: vscode.QuickPickItem & { id: string } = { label: '', kind: vscode.QuickPickItemKind.Separator, id: '__sep1__' };
+    const SEP2: vscode.QuickPickItem & { id: string } = { label: '', kind: vscode.QuickPickItemKind.Separator, id: '__sep2__' };
+    const RESET: vscode.QuickPickItem & { id: string } = { label: `$(key) ${t('resetApiKey')}`, id: '__reset__' };
 
     const providerItems = await this._buildProviderItems(currentId);
 
@@ -122,30 +115,26 @@ export class ProviderSelector {
       return '__back__';
     }
 
-    await this._applyProvider(selected);
-    return selected.id;
+    await this._applyProvider(selected as ProviderItem);
+    return (selected as ProviderItem).id;
   }
 
-  // ─────────────────────────────────────────────
-  // 言語サブメニュー（Back付き）
-  // ─────────────────────────────────────────────
   private async _showLanguagePicker(): Promise<string | undefined> {
-    const config      = vscode.workspace.getConfiguration('markdownTwin');
-    const currentLang = config.get<string>('targetLanguage') ?? 'Korean (한국어)';
+    const config = vscode.workspace.getConfiguration('markdownTwin');
+    const currentLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
 
-    type LangItem = vscode.QuickPickItem & { lang: string };
+    type LangItem = vscode.QuickPickItem & { code: string };
 
-    const BACK: LangItem = { label: `$(arrow-left) ${t('back')}`, lang: '__back__' };
-    const SEP:  LangItem = { label: '', kind: vscode.QuickPickItemKind.Separator, lang: '' };
+    const BACK: LangItem = { label: `$(arrow-left) ${t('back')}`, code: '__back__' };
+    const SEP: LangItem = { label: '', kind: vscode.QuickPickItemKind.Separator, code: '__sep__' };
 
-    const langItems: LangItem[] = SUPPORTED_LANGUAGES
-      .map(l => ({
-        label:       l.label,
-        description: currentLang === l.label ? '$(check)' : undefined,
-        lang:        l.label,
-        picked:      currentLang === l.label,
-        iconPath:    vscode.Uri.joinPath(this.extensionUri, 'media', 'flags', `${l.code}.svg`),
-      }));
+    const langItems: LangItem[] = SUPPORTED_LANGUAGES.map(l => ({
+      label: l.label,
+      description: currentLang === l.code ? '$(check)' : undefined,
+      code: l.code,
+      picked: currentLang === l.code,
+      iconPath: vscode.Uri.joinPath(this.extensionUri, 'media', 'flags', `${l.code}.svg`),
+    }));
 
     const selected = await vscode.window.showQuickPick<LangItem>(
       [BACK, SEP, ...langItems],
@@ -153,12 +142,11 @@ export class ProviderSelector {
     );
 
     if (!selected) return undefined;
-    if (selected.lang === '__back__') return '__back__';
+    if (selected.code === '__back__') return '__back__';
 
-    await config.update('targetLanguage', selected.lang, vscode.ConfigurationTarget.Global);
-    const code = getLanguageCodeFromLabel(selected.lang);
-    await vscode.commands.executeCommand('setContext', 'markdownTwin.targetLang', code);
-    PreviewPanel.updateFlagIcon(code);
+    await config.update('targetLanguage', selected.code, vscode.ConfigurationTarget.Global);
+    await vscode.commands.executeCommand('setContext', 'markdownTwin.targetLang', selected.code);
+    PreviewPanel.updateFlagIcon(selected.code);
 
     if (this.translationManager.isActive()) {
       const activeUri = PreviewPanel.currentPanel?.editorDocumentUri;
@@ -173,12 +161,9 @@ export class ProviderSelector {
       this.statusBar.showOffline();
     }
 
-    return selected.lang;
+    return selected.code;
   }
 
-  // ─────────────────────────────────────────────
-  // APIキーリセット
-  // ─────────────────────────────────────────────
   private async _resetApiKey(): Promise<void> {
     const keyProviders = PROVIDER_DEFS.filter(p => p.requiresKey);
 
@@ -188,14 +173,14 @@ export class ProviderSelector {
         return key ? p : null;
       })
     );
-    const available = withKeys.filter((p): p is typeof keyProviders[0] => p !== null);
+    const available = withKeys.filter((p): p is (typeof keyProviders)[0] => p !== null);
 
     if (available.length === 0) {
       vscode.window.showInformationMessage(t('noSavedKeys'));
       return;
     }
 
-    type ResetItem = vscode.QuickPickItem & { id: string };
+    type ResetItem = vscode.QuickPickItem & { id: ProviderId };
     const picked = await vscode.window.showQuickPick<ResetItem>(
       available.map(p => ({ label: p.displayName, id: p.id })),
       { title: t('resetApiKeyTitle'), placeHolder: t('selectProviderToReEnter') }
@@ -206,36 +191,29 @@ export class ProviderSelector {
     await this.apiKeyManager.prompt(picked.id, existing);
   }
 
-  // ─────────────────────────────────────────────
-  // 共通ヘルパー
-  // ─────────────────────────────────────────────
-  private async _buildProviderItems(currentId: string): Promise<ProviderItem[]> {
+  private async _buildProviderItems(currentId: ProviderId): Promise<ProviderItem[]> {
     return Promise.all(PROVIDER_DEFS.map(async p => {
-      let desc: string;
-      if (!p.requiresKey) {
-        desc = 'No API key';
-      } else {
-        const key = await this.apiKeyManager.getKey(p.id);
-        desc = key ? 'Key saved' : 'API key required';
+      const key = await this.apiKeyManager.getKey(p.id);
+      let description = key ? 'Key saved' : 'API key required';
+      if (currentId === p.id) {
+        description += '  $(check)';
       }
-      if (currentId === p.id) { desc += '  $(check)'; }
 
       return {
-        label:       p.displayName,
-        description: desc,
-        id:          p.id,
+        label: p.displayName,
+        description,
+        id: p.id,
         displayName: p.displayName,
         requiresKey: p.requiresKey,
-        picked:      currentId === p.id,
+        picked: currentId === p.id,
       };
     }));
   }
 
   private async _applyProvider(selected: ProviderItem): Promise<void> {
     const config = vscode.workspace.getConfiguration('markdownTwin');
-    await config.update('provider', selected.displayName, vscode.ConfigurationTarget.Global);
+    await config.update('provider', selected.id, vscode.ConfigurationTarget.Global);
 
-    // キー未保存のときだけ入力を促す
     if (selected.requiresKey) {
       const existing = await this.apiKeyManager.getKey(selected.id);
       if (!existing) {
@@ -250,7 +228,7 @@ export class ProviderSelector {
       );
       if (doc) {
         this.translationManager.clearAllCache();
-        this.translationManager.startTranslation(doc, selected.id);
+        await this.translationManager.startTranslation(doc, selected.id);
       }
     } else {
       this.statusBar.setActiveProvider(selected.id);

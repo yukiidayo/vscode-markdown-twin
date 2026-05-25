@@ -1,70 +1,118 @@
-import * as vscode from 'vscode';
+﻿import * as vscode from 'vscode';
 
 export interface Language {
-  label: string;
   code: string;
+  label: string;
   displayCode: string;
 }
 
-export const DEFAULT_LANG_CODE = 'ko';
-export const AUTO_DETECT_LABEL = 'Auto Detect (自動検出)';
+export const DEFAULT_SOURCE_LANG_CODE = 'ja';
+export const DEFAULT_TARGET_LANG_CODE = 'ko';
+export const AUTO_DETECT_LANG_CODE = 'auto';
 
-export const SUPPORTED_LANGUAGES: Language[] = [
-  { label: 'Japanese (日本語)', code: 'ja', displayCode: 'JA' },
-  { label: 'English (English)', code: 'en', displayCode: 'EN' },
-  { label: 'Korean (한국어)', code: 'ko', displayCode: 'KO' },
-  { label: 'Spanish (Español)', code: 'es', displayCode: 'ES' },
-  { label: 'French (Français)', code: 'fr', displayCode: 'FR' },
-  { label: 'German (Deutsch)', code: 'de', displayCode: 'DE' },
-  { label: 'Italian (Italiano)', code: 'it', displayCode: 'IT' },
-  { label: 'Portuguese (Português)', code: 'pt', displayCode: 'PT' },
-  { label: 'Russian (Русский)', code: 'ru', displayCode: 'RU' },
-  { label: 'Vietnamese (Tiếng Việt)', code: 'vi', displayCode: 'VI' },
-  { label: 'Thai (ไทย)', code: 'th', displayCode: 'TH' },
-  { label: 'Indonesian (Bahasa Indonesia)', code: 'id', displayCode: 'ID' },
-  { label: 'Arabic (العربية)', code: 'ar', displayCode: 'AR' },
-  { label: 'Hindi (हिन्दी)', code: 'hi', displayCode: 'HI' }
+export const TARGET_LANGUAGES: Language[] = [
+  { code: 'ja', label: 'Japanese (日本語)', displayCode: 'JA' },
+  { code: 'en', label: 'English (English)', displayCode: 'EN' },
+  { code: 'ko', label: 'Korean (한국어)', displayCode: 'KO' },
+  { code: 'es', label: 'Spanish (Español)', displayCode: 'ES' },
+  { code: 'fr', label: 'French (Français)', displayCode: 'FR' },
+  { code: 'de', label: 'German (Deutsch)', displayCode: 'DE' },
+  { code: 'it', label: 'Italian (Italiano)', displayCode: 'IT' },
+  { code: 'pt', label: 'Portuguese (Português)', displayCode: 'PT' },
+  { code: 'ru', label: 'Russian (Русский)', displayCode: 'RU' },
+  { code: 'vi', label: 'Vietnamese (Tiếng Việt)', displayCode: 'VI' },
+  { code: 'th', label: 'Thai (ไทย)', displayCode: 'TH' },
+  { code: 'id', label: 'Indonesian (Bahasa Indonesia)', displayCode: 'ID' },
+  { code: 'ar', label: 'Arabic (العربية)', displayCode: 'AR' },
+  { code: 'hi', label: 'Hindi (हिन्दी)', displayCode: 'HI' },
 ];
 
-export const FLAG_EMOJI: Record<string, string> = {
-  ja: '🇯🇵', en: '🇺🇸', ko: '🇰🇷', es: '🇪🇸',
-  fr: '🇫🇷', de: '🇩🇪', it: '🇮🇹', pt: '🇧🇷',
-  ru: '🇷🇺', vi: '🇻🇳', th: '🇹🇭', id: '🇮🇩',
-  ar: '🇸🇦', hi: '🇮🇳',
+export const SUPPORTED_LANGUAGES = TARGET_LANGUAGES;
+export const SOURCE_LANGUAGE_CODES = [AUTO_DETECT_LANG_CODE, ...TARGET_LANGUAGES.map(l => l.code)];
+
+export const LEGACY_PREFIX_TO_CODE: Record<string, string> = {
+  'auto detect': AUTO_DETECT_LANG_CODE,
+  japanese: 'ja',
+  english: 'en',
+  korean: 'ko',
+  spanish: 'es',
+  french: 'fr',
+  german: 'de',
+  italian: 'it',
+  portuguese: 'pt',
+  russian: 'ru',
+  vietnamese: 'vi',
+  thai: 'th',
+  indonesian: 'id',
+  arabic: 'ar',
+  hindi: 'hi',
 };
 
-export function getLangFlag(langLabel: string): string {
-  const lang = SUPPORTED_LANGUAGES.find(l => l.label === langLabel);
-  return FLAG_EMOJI[lang?.code ?? ''] ?? '$(globe)';
-}
-
-function findLanguage(lang: string): Language | undefined {
-  const lower = lang.trim().toLowerCase();
-  return SUPPORTED_LANGUAGES.find(l =>
-    l.label.toLowerCase() === lower ||
+function findLanguage(value: string): Language | undefined {
+  const lower = value.trim().toLowerCase();
+  return TARGET_LANGUAGES.find(l =>
     l.code.toLowerCase() === lower ||
-    l.displayCode.toLowerCase() === lower
+    l.displayCode.toLowerCase() === lower ||
+    l.label.toLowerCase() === lower
   );
 }
 
+function resolveLegacyLanguageCode(value: string): string | undefined {
+  const lower = value.trim().toLowerCase();
+  const matchedPrefix = Object.keys(LEGACY_PREFIX_TO_CODE).find(prefix => lower.startsWith(prefix));
+  return matchedPrefix ? LEGACY_PREFIX_TO_CODE[matchedPrefix] : undefined;
+}
+
+function normalizeLanguageCode(rawValue: string | undefined, fallback: string, allowAuto: boolean): string {
+  if (!rawValue) return fallback;
+
+  const trimmed = rawValue.trim();
+  if (!trimmed) return fallback;
+
+  if (allowAuto && trimmed.toLowerCase() === AUTO_DETECT_LANG_CODE) {
+    return AUTO_DETECT_LANG_CODE;
+  }
+
+  const byLanguage = findLanguage(trimmed);
+  if (byLanguage) {
+    return byLanguage.code;
+  }
+
+  const byLegacy = resolveLegacyLanguageCode(trimmed);
+  if (byLegacy && (allowAuto || byLegacy !== AUTO_DETECT_LANG_CODE)) {
+    return byLegacy;
+  }
+
+  return fallback;
+}
+
+export function normalizeSourceLanguageCode(rawValue: string | undefined): string {
+  return normalizeLanguageCode(rawValue, DEFAULT_SOURCE_LANG_CODE, true);
+}
+
+export function normalizeTargetLanguageCode(rawValue: string | undefined): string {
+  return normalizeLanguageCode(rawValue, DEFAULT_TARGET_LANG_CODE, false);
+}
+
 export function getLanguageCode(lang: string): string {
-  if (!lang) return DEFAULT_LANG_CODE.toUpperCase();
-  return findLanguage(lang)?.displayCode ?? lang.trim().toUpperCase().slice(0, 2);
+  const normalized = normalizeTargetLanguageCode(lang);
+  return findLanguage(normalized)?.displayCode ?? normalized.toUpperCase().slice(0, 2);
 }
 
 export function getLanguageISO(lang: string): string {
-  if (!lang) return DEFAULT_LANG_CODE;
-  if (lang.trim() === AUTO_DETECT_LABEL) return 'auto';
-  return findLanguage(lang)?.code ?? lang.trim().toLowerCase();
+  return normalizeSourceLanguageCode(lang);
 }
 
-export function getLanguageCodeFromLabel(label: string): string {
-  return SUPPORTED_LANGUAGES.find(l => l.label === label)?.code ?? DEFAULT_LANG_CODE;
+export function getLanguageLabel(code: string): string {
+  if (code === AUTO_DETECT_LANG_CODE) {
+    return 'Auto Detect';
+  }
+
+  return TARGET_LANGUAGES.find(l => l.code === code)?.label ?? code;
 }
 
 export function getTargetLanguageCode(): string {
   const config = vscode.workspace.getConfiguration('markdownTwin');
-  const rawTarget = config.get<string>('targetLanguage') ?? 'Korean (한국어)';
-  return getLanguageCodeFromLabel(rawTarget);
+  const rawTarget = config.get<string>('targetLanguage');
+  return normalizeTargetLanguageCode(rawTarget);
 }
-
