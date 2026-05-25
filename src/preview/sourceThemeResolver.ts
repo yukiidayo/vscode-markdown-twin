@@ -73,14 +73,17 @@ export class SourceThemeResolver {
   }
 
   private resolveThemeFilePath(themeId: string): string | null {
-    const themes = vscode.extensions.all.flatMap(ext => ext.packageJSON?.contributes?.themes ?? []);
-    const hit = themes.find((theme: any) => theme?.id === themeId || theme?.label === themeId);
-    if (!hit || !hit.path) return null;
+    for (const ext of vscode.extensions.all) {
+      const themes = ext.packageJSON?.contributes?.themes;
+      if (!Array.isArray(themes)) continue;
 
-    const ext = vscode.extensions.getExtension(hit.extensionId) ?? vscode.extensions.all.find(e => e.id === hit.extensionId);
-    if (!ext) return null;
+      const hit = themes.find((theme: any) => theme?.id === themeId || theme?.label === themeId);
+      if (!hit?.path) continue;
 
-    return path.resolve(ext.extensionPath, hit.path);
+      return path.resolve(ext.extensionPath, hit.path);
+    }
+
+    return null;
   }
 
   private readThemeTokenRules(themePath: string, visited = new Set<string>()): ThemeRule[] {

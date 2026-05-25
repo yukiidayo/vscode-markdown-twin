@@ -1,3 +1,22 @@
+#mt-topbar {
+  height: 22px;
+  line-height: 22px;
+  padding-left: 16px;
+  box-sizing: border-box;
+  color: var(--vscode-breadcrumb-foreground, var(--vscode-descriptionForeground));
+  background-color: var(--vscode-editor-background);
+  border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-editorWidget-border, transparent));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--vscode-editor-font-family, var(--markdown-font-family, inherit));
+  font-size: 12px;
+}
+
+#preview-container {
+  line-height: 19px;
+}
+
 /* バイリンガルモード: 翻訳テキストブロック */
 .mt-translation {
   color: var(--vscode-descriptionForeground);
@@ -16,14 +35,14 @@
 
 /* 翻訳待ち状態 (パルスアニメーションでローディング中を美しく演出) */
 .mt-translation.mt-pending {
-  opacity: 0.55;
+  opacity: 0.6;
   font-style: normal;
   border-left-color: var(--vscode-disabledForeground);
-  animation: mtPulse 1.5s ease-in-out infinite;
+  animation: none;
 }
 
 .mt-translation.mt-pending::before {
-  content: "⏳ ";
+  content: "... ";
   display: inline-block;
   margin-right: 4px;
 }
@@ -53,12 +72,11 @@
 
 /* 一行翻訳専用ローディング状態 (プレミアムシマー効果) */
 .mt-translation-only.mt-pending {
-  opacity: 0.75;
-  background: linear-gradient(90deg, var(--vscode-editor-foreground) 25%, var(--vscode-disabledForeground) 50%, var(--vscode-editor-foreground) 75%);
-  background-size: 200% 100%;
-  animation: mtShimmer 1.5s infinite linear;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  opacity: 0.65;
+  background: none;
+  animation: none;
+  -webkit-background-clip: initial;
+  -webkit-text-fill-color: initial;
   display: inline-block;
 }
 
@@ -72,17 +90,37 @@
    ========================================================================== */
 
 #source-container {
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: flex-start;
   padding: 0;
   margin: 0;
   width: 100%;
-  height: 100vh;
+  height: calc(100vh - 22px);
   box-sizing: border-box;
   background-color: var(--vscode-editor-background);
   overflow: auto;
-  --mt-scroll-beyond-last-line: 22px;
+  --mt-scroll-beyond-last-line: 19px;
+}
+
+#mt-source-highlight-error {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 4px 10px;
+  box-sizing: border-box;
+  border-top: 1px solid var(--vscode-inputValidation-errorBorder, #f14c4c);
+  border-bottom: 1px solid var(--vscode-inputValidation-errorBorder, #f14c4c);
+  color: var(--vscode-inputValidation-errorForeground, #f48771);
+  background: var(--vscode-inputValidation-errorBackground, rgba(244, 135, 113, 0.12));
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: pre-wrap;
+  pointer-events: none;
 }
 
 html.mt-source-mode,
@@ -92,20 +130,15 @@ body.mt-source-mode {
   overflow: hidden !important;
 }
 
-body.mt-preview-mode::before {
-  content: '';
-  display: block;
-  height: 22px;
-}
-
 #line-numbers {
-  padding: 8px 16px var(--mt-scroll-beyond-last-line) 10px;
+  padding: 8px 0 var(--mt-scroll-beyond-last-line) 0;
   text-align: right;
   color: var(--vscode-editorLineNumber-foreground);
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
   font-size: var(--vscode-editor-font-size, 14px);
   user-select: none;
-  min-width: 32px;
+  width: 68px;
+  min-width: 68px;
   opacity: 0.8;
   box-sizing: border-box;
   display: flex;
@@ -113,13 +146,28 @@ body.mt-preview-mode::before {
 }
 
 .line-number {
+  position: relative;
   box-sizing: border-box;
   margin: 0;
-  padding: 0;
+  padding: 0 26px 0 0;
+  display: block;
+  text-align: right;
+  line-height: var(--mt-source-line-height, 19px);
+}
+
+.line-number-value {
+  display: inline-block;
+}
+
+.line-number-fold-slot {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 26px;
+  height: var(--mt-source-line-height, 19px);
   display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-  line-height: var(--mt-source-line-height, 22px);
+  align-items: center;
+  justify-content: center;
 }
 
 pre.language-markdown {
@@ -129,8 +177,8 @@ pre.language-markdown {
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
   font-size: var(--vscode-editor-font-size, 14px);
   font-weight: var(--vscode-editor-font-weight, normal);
-  line-height: var(--mt-source-line-height, 22px);
-  padding: 8px 14px var(--mt-scroll-beyond-last-line) 14px;
+  line-height: var(--mt-source-line-height, 19px);
+  padding: 8px 0 var(--mt-scroll-beyond-last-line) 0;
   margin: 0;
   border-radius: 0;
   border: none;
@@ -155,7 +203,7 @@ pre.language-markdown {
   white-space: pre-wrap;
   word-wrap: break-word;
   word-break: break-all;
-  min-height: var(--mt-source-line-height, 22px);
+  min-height: var(--mt-source-line-height, 19px);
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -173,14 +221,14 @@ pre.language-markdown {
 .fold-toggle {
   width: 14px;
   min-width: 14px;
-  height: var(--mt-source-line-height, 22px);
-  margin-right: 4px;
+  height: var(--mt-source-line-height, 19px);
+  margin-right: 0;
   padding: 0;
   border: none;
   background: transparent;
   color: var(--vscode-editorGutter-foldingControlForeground, var(--vscode-editorLineNumber-foreground, var(--vscode-editor-foreground)));
   cursor: pointer;
-  line-height: var(--mt-source-line-height, 22px);
+  line-height: var(--mt-source-line-height, 19px);
   text-align: center;
   font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
   position: relative;
@@ -363,4 +411,41 @@ pre.language-markdown {
 
 .token.comment {
   color: var(--mt-token-comment, var(--vscode-symbolIcon-operatorForeground, var(--vscode-descriptionForeground)));
+}
+
+
+/* Preview mode: align typography and spacing closer to editor */
+body.mt-preview-mode {
+  font-family: var(--vscode-editor-font-family, var(--markdown-font-family, inherit));
+  font-size: var(--vscode-editor-font-size, var(--markdown-font-size, 14px));
+  line-height: 19px;
+  padding: 0;
+}
+
+body.mt-preview-mode h1,
+body.mt-preview-mode h2,
+body.mt-preview-mode h3,
+body.mt-preview-mode h4,
+body.mt-preview-mode h5,
+body.mt-preview-mode h6 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+body.mt-preview-mode p,
+body.mt-preview-mode ul,
+body.mt-preview-mode ol,
+body.mt-preview-mode pre {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+body.mt-preview-mode ul,
+body.mt-preview-mode ol {
+  padding-left: 1.4em;
+}
+
+body.mt-preview-mode li {
+  margin: 0.15em 0;
 }

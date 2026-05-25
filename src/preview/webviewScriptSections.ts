@@ -95,6 +95,19 @@ export const WEBVIEW_SCRIPT_SHARED = `
                 }
             }
         }
+
+        function setSourceHighlightError(message) {
+            const banner = document.getElementById('mt-source-highlight-error');
+            if (!banner) return;
+            const text = typeof message === 'string' ? message.trim() : '';
+            if (!text) {
+                banner.style.display = 'none';
+                banner.textContent = '';
+                return;
+            }
+            banner.style.display = 'block';
+            banner.textContent = text;
+        }
 `;
 
 export const WEBVIEW_SCRIPT_FOLDING = `
@@ -221,15 +234,6 @@ export const WEBVIEW_SCRIPT_FOLDING = `
                 const hidden = isLineHiddenByFold(lineNumber);
                 lineEl.style.display = hidden ? 'none' : '';
 
-                const toggleEl = lineEl.querySelector('.fold-toggle[data-fold-start]');
-                if (toggleEl) {
-                    const startLine = parseInt(toggleEl.getAttribute('data-fold-start') || '-1', 10);
-                    const collapsed = collapsedFoldStarts.has(startLine);
-                    toggleEl.classList.toggle('is-collapsed', collapsed);
-                    toggleEl.setAttribute('aria-expanded', String(!collapsed));
-                    toggleEl.setAttribute('title', collapsed ? 'Expand folded region' : 'Collapse region');
-                }
-
                 const isCollapsedStart = foldRangeByStart.has(lineNumber) && collapsedFoldStarts.has(lineNumber);
                 lineEl.classList.toggle('fold-collapsed-start', isCollapsedStart);
             }
@@ -238,13 +242,22 @@ export const WEBVIEW_SCRIPT_FOLDING = `
                 const lineNumber = parseInt(numEl.getAttribute('data-line') || '-1', 10);
                 const hidden = isLineHiddenByFold(lineNumber);
                 numEl.style.display = hidden ? 'none' : '';
+
+                const toggleEl = numEl.querySelector('.fold-toggle[data-fold-start]');
+                if (toggleEl) {
+                    const startLine = parseInt(toggleEl.getAttribute('data-fold-start') || '-1', 10);
+                    const collapsed = collapsedFoldStarts.has(startLine);
+                    toggleEl.classList.toggle('is-collapsed', collapsed);
+                    toggleEl.setAttribute('aria-expanded', String(!collapsed));
+                    toggleEl.setAttribute('title', collapsed ? 'Expand folded region' : 'Collapse region');
+                }
             }
 
             syncLineHeights();
         }
 
         function bindFoldToggleEvents() {
-            const toggles = document.querySelectorAll('#source-code .fold-toggle[data-fold-start]');
+            const toggles = document.querySelectorAll('#line-numbers .fold-toggle[data-fold-start]');
             for (const toggle of toggles) {
                 toggle.addEventListener('click', (event) => {
                     event.preventDefault();
@@ -384,10 +397,12 @@ export const WEBVIEW_SCRIPT_SOURCE_RENDERING = `
                   : '<span class="code-line-content">' + displayLine + '</span>';
 
                 codeHtml += '<div class="' + classes.join(' ') + '" data-line="' + index + '"' + styleAttr + '>'
-                  + buildFoldToggleHtml(index)
                   + summaryHtml
                   + '</div>';
-                lineNumHtml += '<div class="line-number" data-line="' + index + '"' + styleAttr + '>' + (index + 1) + '</div>';
+                lineNumHtml += '<div class="line-number" data-line="' + index + '"' + styleAttr + '>'
+                  + '<span class="line-number-value">' + (index + 1) + '</span>'
+                  + '<span class="line-number-fold-slot">' + buildFoldToggleHtml(index) + '</span>'
+                  + '</div>';
             });
 
             codeEl.innerHTML = codeHtml;
@@ -421,6 +436,7 @@ export const WEBVIEW_SCRIPT_SYNC = `
                 applySourceEditorMetrics(message.sourceLineHeight);
                 applyResolvedFoldBackground();
                 applySourceTokenThemeVars(message.sourceTokenThemeVars);
+                setSourceHighlightError(message.sourceHighlightError);
                 const codeEl = document.getElementById('source-code');
                 if (codeEl) {
                     renderSourceCode(message.sourceHtml, message.sourceText, message.sourceLineCount);

@@ -291,17 +291,17 @@ export class PreviewPanel {
     // sourceモード用の翻訳済みMarkdownを生成する。
     const sourceMarkdown = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
     let highlightedSource = escapeHtml(sourceMarkdown);
+    let sourceHighlightError: string | undefined;
 
     const sourceLineCount = sourceMarkdown.split(/\r?\n/).length;
-    const editorOptions = this._editor.options as { lineHeight?: number };
-    const sourceLineHeight = typeof editorOptions.lineHeight === 'number' && editorOptions.lineHeight > 0
-      ? editorOptions.lineHeight
-      : 22;
+    const sourceLineHeight = 19;
 
     try {
       highlightedSource = await this._sourceHighlighter.highlight(sourceMarkdown);
     } catch (err: any) {
-      this.translationManager.logWarning(`TextMate source highlight fallback: ${err?.message ?? String(err)}`);
+      const reason = err?.message ?? String(err);
+      sourceHighlightError = `Source highlight failed: ${reason}`;
+      this.translationManager.logError(`Source highlight failed: ${reason}`, err, false);
     }
 
     const sourceTokenThemeVars = this._sourceHighlighter.resolveTokenThemeVars();
@@ -314,12 +314,14 @@ export class PreviewPanel {
         vscode.Uri.file(path.join(this._extensionUri.fsPath, 'media', 'markdown.css'))
       );
       webview.html = buildPreviewWebviewHtml({
+        previewHeaderTitle: `Twin Preview ${path.basename(document.fileName)}`,
         renderedHtml,
         highlightedSource,
         sourceText: sourceMarkdown,
         sourceLineCount,
         sourceLineHeight,
         sourceTokenThemeVars,
+        sourceHighlightError,
         markdownCssUri,
         twinCssUri,
         cspSource: webview.cspSource,
@@ -335,7 +337,8 @@ export class PreviewPanel {
         sourceText: sourceMarkdown,
         sourceLineCount,
         sourceLineHeight,
-        sourceTokenThemeVars
+        sourceTokenThemeVars,
+        sourceHighlightError
       });
     }
   }
