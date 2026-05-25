@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { TranslationManager } from './translationManager';
 import { StatusBar } from './statusBar';
 import { ApiKeyManager } from './apiKeyManager';
@@ -48,7 +48,6 @@ async function applyTargetLanguageByCode(code: string): Promise<void> {
   }
 
   await vscode.commands.executeCommand('setContext', 'markdownTwin.targetLang', target.code);
-  PreviewPanel.updateFlagIcon(target.code);
 }
 
 async function migrateLegacySettings(): Promise<void> {
@@ -93,8 +92,10 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeConfiguration(async e => {
       if (e.affectsConfiguration('markdownTwin.targetLanguage')) {
         syncTargetLangContext();
-        const code = getTargetLanguageCode();
-        PreviewPanel.updateFlagIcon(code);
+        const activePanel = PreviewPanel.getActivePanel();
+        if (activePanel) {
+          await PreviewPanel.createOrShow(context.extensionUri, translationManager, activePanel.editorDocument);
+        }
 
         if (translationManager.isActive()) {
           await rerunActivePreviewTranslation(translationManager, { clearCache: true });

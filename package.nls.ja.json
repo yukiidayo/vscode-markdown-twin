@@ -1,4 +1,4 @@
-﻿{
+{
   "markdownTwin.provider.description": "使用する翻訳プロバイダー。",
   "markdownTwin.azureRegion.markdownDescription": "Azure Translator 用のリージョン。**プロバイダーが Azure (microsoft) のときのみ使用されます。** (例: global, japaneast, eastus, eastasia)",
   "markdownTwin.sourceLanguage.description": "翻訳元の言語。",

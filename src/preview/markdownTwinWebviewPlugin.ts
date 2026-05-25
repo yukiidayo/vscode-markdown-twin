@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { TranslationManager } from '../translationManager';
 import { EXCLUDED_TOKEN_TYPES } from '../languageDetector';
 import { t } from '../i18n';

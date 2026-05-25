@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { ApiKeyManager } from './apiKeyManager';
 import { TranslationManager } from './translationManager';
 import { StatusBar } from './statusBar';
@@ -148,7 +148,11 @@ export class ProviderSelector {
 
     await config.update('targetLanguage', selected.code, vscode.ConfigurationTarget.Global);
     await vscode.commands.executeCommand('setContext', 'markdownTwin.targetLang', selected.code);
-    PreviewPanel.updateFlagIcon(selected.code);
+
+    const activePanel = PreviewPanel.getActivePanel();
+    if (activePanel) {
+      await PreviewPanel.createOrShow(this.extensionUri, this.translationManager, activePanel.editorDocument);
+    }
 
     if (this.translationManager.isActive()) {
       await rerunActivePreviewTranslation(this.translationManager, { clearCache: true });

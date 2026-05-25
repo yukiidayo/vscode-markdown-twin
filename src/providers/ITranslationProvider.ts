@@ -1,4 +1,4 @@
-﻿export type ProviderId = 'google-cloud' | 'microsoft' | 'deepl' | 'papago';
+export type ProviderId = 'google-cloud' | 'microsoft' | 'deepl' | 'papago';
 
 export interface ITranslationProvider {
   readonly id: ProviderId;

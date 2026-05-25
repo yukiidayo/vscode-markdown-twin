@@ -16,7 +16,7 @@ export interface BuildPreviewWebviewScriptArgs {
 export function buildPreviewWebviewScript(args: BuildPreviewWebviewScriptArgs): string {
   const { sourceLineCount, sourceLineHeight, sourceText, sourceTokenThemeVars, isSource } = args;
 
-  return `<script>
+  return `
         const vscode = acquireVsCodeApi();
         let isSyncingScroll = false;
         let scrollTimeout;
@@ -31,5 +31,5 @@ ${WEBVIEW_SCRIPT_SHARED}
 ${WEBVIEW_SCRIPT_FOLDING}
 ${WEBVIEW_SCRIPT_SOURCE_RENDERING}
 ${WEBVIEW_SCRIPT_SYNC}
-    </script>`;
+    `;
 }

@@ -11,6 +11,15 @@ import { MarkdownSourceHighlighter } from './preview/sourceHighlighter';
 import { runTranslationForDocument } from './translationRunner';
 import { escapeHtml } from './utils/html';
 
+function createNonce(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let out = '';
+  for (let i = 0; i < 32; i++) {
+    out += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return out;
+}
+
 export class PreviewPanel {
   public static currentPanel: PreviewPanel | undefined;
   public static readonly allPanels = new Map<string, PreviewPanel>();
@@ -22,6 +31,7 @@ export class PreviewPanel {
   private _editor: vscode.TextEditor;
   private _isInitialized = false;
   private _isDisposed = false;
+  private readonly _scriptNonce = createNonce();
   public readonly langCode: string;
   private _viewMode: 'preview' | 'source' = 'preview';
   private _sourceHighlighter = new MarkdownSourceHighlighter();
@@ -312,6 +322,8 @@ export class PreviewPanel {
         sourceTokenThemeVars,
         markdownCssUri,
         twinCssUri,
+        cspSource: webview.cspSource,
+        scriptNonce: this._scriptNonce,
         viewMode: this._viewMode
       });
       this._isInitialized = true;

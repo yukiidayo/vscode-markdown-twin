@@ -11,3 +11,4 @@ dist/test/**
 jest.config.js
 package-lock.json
 node_modules/**
+*.vsix

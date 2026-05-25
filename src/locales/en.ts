@@ -1,4 +1,4 @@
-﻿import { TranslationType } from './type';
+import { TranslationType } from './type';
 
 export const en: TranslationType = {
   selectSetting: 'Select setting to change',
@@ -32,7 +32,7 @@ export const en: TranslationType = {
   apiKeyNotSetForProvider: (provider: string) => `API key for provider "${provider}" is not set. Please configure an API key using the command "Markdown Twin: Set API Key".`,
   azureRegionError: (region: string) => `Markdown Twin: Azure region setting might be incorrect (current: "${region}"). Please check the setting "markdownTwin.azureRegion" (e.g. global, japaneast, eastus).`,
   openSettings: 'Open Settings',
-  rateLimitReached: 'Translation provider rate limit reached. Re-trying automatically in a moment.',
+  rateLimitReached: 'Translation provider rate limit reached. Please try again shortly.',
   translationFailed: (provider: string, lang: string) => `Failed to translate with provider "${provider}" (Language: ${lang})`,
   showOutputHint: ' (Please check the output channel "Markdown Twin" for details)',
   copiedToClipboard: 'Translated markdown copied to clipboard!',

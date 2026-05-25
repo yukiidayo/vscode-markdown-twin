@@ -1,5 +1,5 @@
-﻿import { ITranslationProvider } from './ITranslationProvider';
-import { readResponseErrorMessage } from './httpError';
+import { ITranslationProvider } from './ITranslationProvider';
+import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
 
 export class PapagoProvider implements ITranslationProvider {
   readonly id = 'papago';
@@ -44,6 +44,9 @@ export class PapagoProvider implements ITranslationProvider {
       const errorMsg = await readResponseErrorMessage(response, [
         payload => payload?.error?.message,
       ]);
+      if (response.status === 429) {
+        throw new TooManyRequestsError(`Papago rate limit: ${errorMsg}`);
+      }
       throw new Error(`Papago translation failed (${response.status}): ${errorMsg}`);
     }
 

@@ -329,20 +329,20 @@
           "order": 3,
           "enumItemLabels": [
             "Auto Detect",
-            "Japanese (???)",
+            "Japanese (日本語)",
             "English (English)",
-            "Korean (???)",
-            "Spanish (Espa?ol)",
-            "French (Fran?ais)",
+            "Korean (한국어)",
+            "Spanish (Español)",
+            "French (Français)",
             "German (Deutsch)",
             "Italian (Italiano)",
-            "Portuguese (Portugu?s)",
-            "Russian (???????)",
-            "Vietnamese (Ti?ng Vi?t)",
-            "Thai (???)",
+            "Portuguese (Português)",
+            "Russian (Русский)",
+            "Vietnamese (Tiếng Việt)",
+            "Thai (ไทย)",
             "Indonesian (Bahasa Indonesia)",
-            "Arabic (???????)",
-            "Hindi (??????)"
+            "Arabic (العربية)",
+            "Hindi (हिन्दी)"
           ]
         },
         "markdownTwin.targetLanguage": {
@@ -367,20 +367,20 @@
           "description": "%markdownTwin.targetLanguage.description%",
           "order": 4,
           "enumItemLabels": [
-            "Korean (???)",
+            "Korean (한국어)",
             "English (English)",
-            "Japanese (???)",
-            "Spanish (Espa?ol)",
-            "French (Fran?ais)",
+            "Japanese (日本語)",
+            "Spanish (Español)",
+            "French (Français)",
             "German (Deutsch)",
             "Italian (Italiano)",
-            "Portuguese (Portugu?s)",
-            "Russian (???????)",
-            "Vietnamese (Ti?ng Vi?t)",
-            "Thai (???)",
+            "Portuguese (Português)",
+            "Russian (Русский)",
+            "Vietnamese (Tiếng Việt)",
+            "Thai (ไทย)",
             "Indonesian (Bahasa Indonesia)",
-            "Arabic (???????)",
-            "Hindi (??????)"
+            "Arabic (العربية)",
+            "Hindi (हिन्दी)"
           ]
         },
         "markdownTwin.defaultMode": {

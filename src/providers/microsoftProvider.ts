@@ -1,6 +1,6 @@
 import { ITranslationProvider } from './ITranslationProvider';
 import * as vscode from 'vscode';
-import { readResponseErrorMessage } from './httpError';
+import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
 
 export class AzureRegionError extends Error {
   readonly region: string;
@@ -49,6 +49,9 @@ export class MicrosoftProvider implements ITranslationProvider {
       const errorMsg = await readResponseErrorMessage(response, [
         payload => payload?.error?.message,
       ]);
+      if (response.status === 429) {
+        throw new TooManyRequestsError(`Azure rate limit: ${errorMsg}`);
+      }
       if (response.status === 401) {
         const lower = errorMsg.toLowerCase();
         if (lower.includes('endpoint') || lower.includes('regional')) {

@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { t } from './i18n';
 
 export class ApiKeyManager {

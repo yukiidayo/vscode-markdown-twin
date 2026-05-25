@@ -1,29 +1,33 @@
-﻿import { shouldTranslate, splitTranslatableParts, joinTranslatedParts } from '../languageDetector';
+import { shouldTranslate, splitTranslatableParts, joinTranslatedParts } from '../languageDetector';
 
 describe('Language Detector Tests', () => {
   describe('shouldTranslate', () => {
     it('should translate Japanese sentences', () => {
-      expect(shouldTranslate('これは日本語の文章です。')).toBe(true);
-      expect(shouldTranslate('こんにちは、世界。')).toBe(true);
+      expect(shouldTranslate('これは日本語の文章です。', 'ja')).toBe(true);
+      expect(shouldTranslate('こんにちは、世界。', 'ja')).toBe(true);
     });
 
     it('should ignore pure English or identifiers', () => {
-      expect(shouldTranslate('Hello World')).toBe(false);
-      expect(shouldTranslate('12345')).toBe(false);
-      expect(shouldTranslate('const x = 1;')).toBe(false);
-      expect(shouldTranslate('mt-translation')).toBe(false);
+      expect(shouldTranslate('Hello World', 'ja')).toBe(false);
+      expect(shouldTranslate('12345', 'ja')).toBe(false);
+      expect(shouldTranslate('const x = 1;', 'ja')).toBe(false);
+      expect(shouldTranslate('mt-translation', 'ja')).toBe(false);
     });
 
     it('should return false for empty or whitespace strings', () => {
-      expect(shouldTranslate('')).toBe(false);
-      expect(shouldTranslate('   ')).toBe(false);
+      expect(shouldTranslate('', 'ja')).toBe(false);
+      expect(shouldTranslate('   ', 'ja')).toBe(false);
+    });
+
+    it('should translate English sentences when source language is English', () => {
+      expect(shouldTranslate('Hello World', 'en')).toBe(true);
     });
   });
 
   describe('splitTranslatableParts and joinTranslatedParts', () => {
     it('should split Japanese and keep identifiers and inline code intact', () => {
       const text = 'こんにちは `world` です。';
-      const parts = splitTranslatableParts(text);
+      const parts = splitTranslatableParts(text, 'ja');
 
       expect(parts.length).toBe(3);
       expect(parts[0]).toEqual({ text: 'こんにちは `', translate: true });

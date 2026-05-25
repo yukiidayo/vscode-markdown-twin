@@ -1,4 +1,4 @@
-﻿// VSCode mock for Jest tests
+// VSCode mock for Jest tests
 
 export const StatusBarAlignment = {
   Left: 1,

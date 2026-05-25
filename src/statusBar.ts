@@ -1,5 +1,5 @@
-﻿import * as vscode from 'vscode';
-x1import { getLanguageDisplayCode, normalizeTargetLanguageCode } from './languages';
+import * as vscode from 'vscode';
+import { getLanguageDisplayCode, normalizeTargetLanguageCode } from './languages';
 import { PROVIDER_DISPLAY_NAMES, normalizeProviderId } from './providers/ITranslationProvider';
 import { t } from './i18n';
 

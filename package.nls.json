@@ -1,4 +1,4 @@
-﻿{
+{
   "markdownTwin.provider.description": "Active translation provider.",
   "markdownTwin.azureRegion.markdownDescription": "Azure region for Azure Translator. **Used only when provider is Azure (microsoft).** (e.g. global, japaneast, eastus, eastasia)",
   "markdownTwin.sourceLanguage.description": "Source language for translation.",

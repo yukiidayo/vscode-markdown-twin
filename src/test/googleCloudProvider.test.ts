@@ -1,4 +1,4 @@
-﻿import { GoogleCloudProvider } from '../providers/googleCloudProvider';
+import { GoogleCloudProvider } from '../providers/googleCloudProvider';
 
 describe('GoogleCloudProvider Tests', () => {
   let provider: GoogleCloudProvider;

@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
 import {
   ITranslationProvider,
@@ -11,6 +11,7 @@ import { DeeplProvider } from './providers/deeplProvider';
 import { PapagoProvider } from './providers/papagoProvider';
 import { GoogleCloudProvider } from './providers/googleCloudProvider';
 import { MicrosoftProvider, AzureRegionError } from './providers/microsoftProvider';
+import { TooManyRequestsError } from './providers/httpError';
 import { ApiKeyManager } from './apiKeyManager';
 import { StatusBar } from './statusBar';
 import { shouldTranslate, splitTranslatableParts, joinTranslatedParts, EXCLUDED_TOKEN_TYPES } from './languageDetector';
@@ -29,6 +30,7 @@ export class TranslationManager implements vscode.Disposable {
   private statusBar: StatusBar | null = null;
   private md = new MarkdownIt();
   private currentTranslationSessionId = 0;
+  private currentSourceLang = 'auto';
   private outputChannel = vscode.window.createOutputChannel('Markdown Twin');
 
   private onTranslationUpdatedEmitter = new vscode.EventEmitter<vscode.Uri | undefined>();
@@ -95,7 +97,7 @@ export class TranslationManager implements vscode.Disposable {
     const docCache = this.cache.get(cacheKey);
     if (!docCache) return null;
 
-    const parts = splitTranslatableParts(originalContent);
+    const parts = splitTranslatableParts(originalContent, this.currentSourceLang);
     const translationSlice = new Map<number, string>();
     let transOffset = 0;
 
@@ -125,6 +127,7 @@ export class TranslationManager implements vscode.Disposable {
     this.statusBar?.setActiveProvider(providerId);
 
     const sourceLang = resolveSourceLanguageCode(config.get<string>('sourceLanguage') ?? 'ja');
+    this.currentSourceLang = sourceLang;
     const defaultTargetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
     const batchSize = config.get<number>('batchSize') ?? 10;
 
@@ -151,7 +154,7 @@ export class TranslationManager implements vscode.Disposable {
       return;
     }
 
-    const currentTexts = this.extractTranslatableTexts(document);
+    const currentTexts = this.extractTranslatableTexts(document, sourceLang);
     const { langToTranslateMap, totalCount } = this.preparePendingTranslations(
       document.uri, targetLangs, currentTexts
     );
@@ -175,16 +178,16 @@ export class TranslationManager implements vscode.Disposable {
     );
   }
 
-  private extractTranslatableTexts(document: vscode.TextDocument): Set<string> {
+  private extractTranslatableTexts(document: vscode.TextDocument, sourceLang: string): Set<string> {
     const text = document.getText();
     const tokens = this.md.parse(text, {});
     const result = new Set<string>();
 
     for (const token of tokens) {
       if (EXCLUDED_TOKEN_TYPES.includes(token.type as any)) continue;
-      if (token.type !== 'inline' || !shouldTranslate(token.content)) continue;
+      if (token.type !== 'inline' || !shouldTranslate(token.content, sourceLang)) continue;
 
-      const parts = splitTranslatableParts(token.content);
+      const parts = splitTranslatableParts(token.content, sourceLang);
       for (const part of parts) {
         if (part.translate) result.add(part.text);
       }
@@ -271,10 +274,13 @@ export class TranslationManager implements vscode.Disposable {
               if (action === t('openSettings')) {
                 void vscode.commands.executeCommand('workbench.action.openSettings', 'markdownTwin.azureRegion');
               }
-            } else if (err?.name === 'TooManyRequestsError') {
-              // レート制限は一時エラーとして警告し、処理は継続する
+            } else if (err instanceof TooManyRequestsError) {
+              // レート制限は一時エラーとして警告し、該当バッチは原文でフォールバックする
               this.logWarning(t('rateLimitReached'));
               this.statusBar?.showError();
+              for (const text of batch) {
+                docCache.set(text, text);
+              }
             } else {
               // その他エラーは該当バッチのみ原文フォールバックする
               this.logError(t('translationFailed', providerName, targetLang), err);

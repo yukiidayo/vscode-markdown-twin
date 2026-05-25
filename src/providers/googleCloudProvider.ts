@@ -1,5 +1,5 @@
 import { ITranslationProvider } from './ITranslationProvider';
-import { readResponseErrorMessage } from './httpError';
+import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
 
 export class GoogleCloudProvider implements ITranslationProvider {
   readonly id = 'google-cloud';
@@ -33,6 +33,9 @@ export class GoogleCloudProvider implements ITranslationProvider {
       const errorMsg = await readResponseErrorMessage(response, [
         payload => payload?.error?.message,
       ]);
+      if (response.status === 429) {
+        throw new TooManyRequestsError(`Google Cloud rate limit: ${errorMsg}`);
+      }
       throw new Error(`Google Cloud Translation failed: ${errorMsg}`);
     }
 

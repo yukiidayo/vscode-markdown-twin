@@ -1,4 +1,4 @@
-﻿import { TranslationType } from './type';
+import { TranslationType } from './type';
 
 export const ja: TranslationType = {
   selectSetting: '変更する設定を選択してください',
@@ -32,7 +32,7 @@ export const ja: TranslationType = {
   apiKeyNotSetForProvider: (provider: string) => `プロバイダー「${provider}」のAPIキーが設定されていません。「Markdown Twin: Set API Key」コマンドから設定してください。`,
   azureRegionError: (region: string) => `Markdown Twin: Azureのリージョン設定が正しくない可能性があります（現在: "${region}"）。"markdownTwin.azureRegion" を確認してください（例: global, japaneast, eastus）。`,
   openSettings: '設定を開く',
-  rateLimitReached: '翻訳プロバイダーのレート制限に達しました。しばらくすると自動的に再試行します。',
+  rateLimitReached: '翻訳プロバイダーのレート制限に達しました。少し時間をおいて再実行してください。',
   translationFailed: (provider: string, lang: string) => `プロバイダー「${provider}」での翻訳に失敗しました（言語: ${lang}）`,
   showOutputHint: ' (詳細は「Markdown Twin」出力チャンネルを確認してください)',
   copiedToClipboard: '翻訳済みMarkdownをクリップボードにコピーしました。',

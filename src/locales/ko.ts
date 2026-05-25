@@ -1,4 +1,4 @@
-﻿import { TranslationType } from './type';
+import { TranslationType } from './type';
 
 export const ko: TranslationType = {
   selectSetting: '변경할 설정을 선택하세요',
@@ -32,7 +32,7 @@ export const ko: TranslationType = {
   apiKeyNotSetForProvider: (provider: string) => `제공자 "${provider}"의 API 키가 설정되지 않았습니다. "Markdown Twin: Set API Key" 명령으로 설정하세요.`,
   azureRegionError: (region: string) => `Markdown Twin: Azure 지역 설정이 잘못되었을 수 있습니다 (현재: "${region}"). "markdownTwin.azureRegion" 설정을 확인하세요 (예: global, japaneast, eastus).`,
   openSettings: '설정 열기',
-  rateLimitReached: '번역 제공자의 요청 제한에 도달했습니다. 잠시 후 자동으로 다시 시도합니다.',
+  rateLimitReached: '번역 제공자의 요청 제한에 도달했습니다. 잠시 후 다시 시도해 주세요.',
   translationFailed: (provider: string, lang: string) => `제공자 "${provider}"로 번역에 실패했습니다 (언어: ${lang})`,
   showOutputHint: ' (자세한 내용은 "Markdown Twin" 출력 채널을 확인하세요)',
   copiedToClipboard: '번역된 Markdown을 클립보드에 복사했습니다.',

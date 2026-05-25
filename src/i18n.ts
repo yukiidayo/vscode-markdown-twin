@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { translations, TranslationType } from './locales';
 
 export type Locale = 'en' | 'ja' | 'ko';

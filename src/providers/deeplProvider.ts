@@ -1,5 +1,5 @@
-﻿import { ITranslationProvider } from './ITranslationProvider';
-import { readResponseErrorMessage } from './httpError';
+import { ITranslationProvider } from './ITranslationProvider';
+import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
 
 export class DeeplProvider implements ITranslationProvider {
   readonly id = 'deepl';
@@ -11,7 +11,6 @@ export class DeeplProvider implements ITranslationProvider {
   async translate(texts: string[], sourceLang: string, targetLang: string): Promise<string[]> {
     if (texts.length === 0) return [];
 
-    // DeepL Free APIキーは ":fx" で終わる。
     const endpoint = this.apiKey.endsWith(':fx')
       ? 'https://api-free.deepl.com/v2/translate'
       : 'https://api.deepl.com/v2/translate';
@@ -34,6 +33,9 @@ export class DeeplProvider implements ITranslationProvider {
       const errorMsg = await readResponseErrorMessage(response, [
         payload => payload?.message,
       ]);
+      if (response.status === 429) {
+        throw new TooManyRequestsError(`DeepL rate limit: ${errorMsg}`);
+      }
       throw new Error(`DeepL translation failed (${response.status}): ${errorMsg}`);
     }
 
