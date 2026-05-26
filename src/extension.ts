@@ -212,8 +212,8 @@ export async function activate(context: vscode.ExtensionContext) {
       const activePanel = PreviewPanel.getActivePanel();
       if (!activePanel) return;
       try {
-        const mdText = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
-        await vscode.env.clipboard.writeText(mdText);
+        const translated = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
+        await vscode.env.clipboard.writeText(translated.text);
         vscode.window.showInformationMessage(t('copiedToClipboard'));
       } catch (err: any) {
         translationManager.logError('Failed to copy translated markdown', err);
@@ -226,7 +226,8 @@ export async function activate(context: vscode.ExtensionContext) {
       const activePanel = PreviewPanel.getActivePanel();
       if (!activePanel) return;
       try {
-        const mdText = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
+        const translated = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
+        const mdText = translated.text;
 
         const docUri = activePanel.editorDocument.uri;
         const uriPath = docUri.path;

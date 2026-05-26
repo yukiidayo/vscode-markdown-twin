@@ -18,7 +18,7 @@ import { shouldTranslate, splitTranslatableParts, joinTranslatedParts, EXCLUDED_
 import { resolveSourceLanguageCode, normalizeTargetLanguageCode } from './languages';
 import { t } from './i18n';
 import { PreviewPanel } from './previewPanel';
-import { buildTranslatedMarkdown, type TranslationViewMode } from './translatedMarkdownBuilder';
+import { buildTranslatedMarkdown, type TranslatedMarkdownResult, type TranslationViewMode } from './translatedMarkdownBuilder';
 
 export class TranslationManager implements vscode.Disposable {
   // 翻訳キャッシュ構造:
@@ -370,10 +370,17 @@ export class TranslationManager implements vscode.Disposable {
     this.onTranslationUpdatedEmitter.fire(undefined);
   }
 
-  generateTranslatedMarkdown(document: vscode.TextDocument, langCode: string): string {
+  generateTranslatedMarkdown(document: vscode.TextDocument, langCode: string): TranslatedMarkdownResult {
     const cacheKey = `${document.uri.toString()}@${langCode}`;
     const docCache = this.cache.get(cacheKey);
-    if (!docCache || docCache.size === 0) return document.getText();
+    if (!docCache || docCache.size === 0) {
+      const text = document.getText();
+      const lineCount = text.split(/\r?\n/).length;
+      return {
+        text,
+        lineOrigins: Array.from({ length: lineCount }, (_, index) => index),
+      };
+    }
 
     return buildTranslatedMarkdown({
       document,

@@ -35,6 +35,9 @@ export class PreviewPanel {
   public readonly langCode: string;
   private _viewMode: 'preview' | 'source' = 'preview';
   private _sourceHighlighter = new MarkdownSourceHighlighter();
+  private _scrollLeader: 'editor' | 'webview' | null = null;
+  private _scrollLeaderUntil = 0;
+  private _suppressEditorScrollUntil = 0;
 
   public get editorDocumentUri(): vscode.Uri {
     return this._editor.document.uri;
@@ -197,6 +200,8 @@ export class PreviewPanel {
       message => {
         // メッセージ連携: Webview -> 拡張
         if (message.command === 'scroll') {
+          this._setScrollLeader('webview');
+          this._suppressEditorScrollUntil = Date.now() + 220;
           this._handleScrollMessage(message.line);
         }
       },
@@ -232,8 +237,12 @@ export class PreviewPanel {
       e => {
         // スクロール連携: エディタ -> Webview
         if (e.textEditor === this._editor && e.visibleRanges.length > 0) {
+          if (Date.now() < this._suppressEditorScrollUntil || this._hasActiveScrollLeader('webview')) {
+            return;
+          }
           const topLine = e.visibleRanges[0].start.line;
-          this._panel.webview.postMessage({ type: 'scroll', line: topLine });
+          this._setScrollLeader('editor', 180);
+          this._panel.webview.postMessage({ type: 'scroll', line: topLine, origin: 'editor' });
         }
       },
       null,
@@ -256,6 +265,15 @@ export class PreviewPanel {
       PreviewPanel.currentPanel &&
       PreviewPanel.currentPanel.editorDocumentUri.toString() === this._editor.document.uri.toString()
     );
+  }
+
+  private _setScrollLeader(leader: 'editor' | 'webview', durationMs = 220): void {
+    this._scrollLeader = leader;
+    this._scrollLeaderUntil = Date.now() + durationMs;
+  }
+
+  private _hasActiveScrollLeader(leader: 'editor' | 'webview'): boolean {
+    return this._scrollLeader === leader && Date.now() < this._scrollLeaderUntil;
   }
 
   private _handleScrollMessage(line: number) {
@@ -289,7 +307,8 @@ export class PreviewPanel {
     const renderedHtml = md.render(text);
 
     // sourceモード用の翻訳済みMarkdownを生成する。
-    const sourceMarkdown = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
+    const translatedSource = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
+    const sourceMarkdown = translatedSource.text;
     let highlightedSource = escapeHtml(sourceMarkdown);
     let sourceHighlightError: string | undefined;
 
@@ -297,7 +316,7 @@ export class PreviewPanel {
     const sourceLineHeight = 19;
 
     try {
-      highlightedSource = await this._sourceHighlighter.highlight(sourceMarkdown);
+        highlightedSource = await this._sourceHighlighter.highlight(sourceMarkdown);
     } catch (err: any) {
       const reason = err?.message ?? String(err);
       sourceHighlightError = `Source highlight failed: ${reason}`;
@@ -319,6 +338,7 @@ export class PreviewPanel {
         highlightedSource,
         sourceText: sourceMarkdown,
         sourceLineCount,
+        sourceLineOrigins: translatedSource.lineOrigins,
         sourceLineHeight,
         sourceTokenThemeVars,
         sourceHighlightError,
@@ -336,6 +356,7 @@ export class PreviewPanel {
         sourceHtml: highlightedSource,
         sourceText: sourceMarkdown,
         sourceLineCount,
+        sourceLineOrigins: translatedSource.lineOrigins,
         sourceLineHeight,
         sourceTokenThemeVars,
         sourceHighlightError

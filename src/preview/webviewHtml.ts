@@ -7,6 +7,7 @@ export interface BuildPreviewWebviewHtmlArgs {
   highlightedSource: string;
   sourceText: string;
   sourceLineCount: number;
+  sourceLineOrigins: number[];
   sourceLineHeight: number;
   sourceTokenThemeVars: Record<string, string>;
   sourceHighlightError?: string;
@@ -24,6 +25,7 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
     highlightedSource,
     sourceText,
     sourceLineCount,
+    sourceLineOrigins,
     sourceLineHeight,
     sourceTokenThemeVars,
     sourceHighlightError,
@@ -38,6 +40,7 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
   const isSource = viewMode === 'source';
   const script = buildPreviewWebviewScript({
     sourceLineCount,
+    sourceLineOrigins,
     sourceLineHeight,
     sourceText,
     sourceTokenThemeVars,
@@ -57,14 +60,18 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
 <body class="${isSource ? 'mt-source-mode' : 'mt-preview-mode'}" data-vscode-context='{"webviewSection":"markdownTwinContent","preventDefaultContextMenuItems":true}'>
     <div id="mt-topbar">${previewHeaderTitle}</div>
     <div id="preview-container" style="display: ${isPreview ? 'block' : 'none'};">${renderedHtml}</div>
-
-    <div id="source-container" style="display: ${isSource ? 'flex' : 'none'};">
-        <div id="mt-source-highlight-error" style="display: ${sourceHighlightError ? 'block' : 'none'};">${sourceHighlightError ?? ''}</div>
-        <div id="line-numbers"></div>
-        <pre class="language-markdown"><code class="language-markdown" id="source-code">${highlightedSource}</code></pre>
-        <div id="mt-source-scrollbar" aria-hidden="true">
-            <div id="mt-source-scrollbar-track">
-                <div id="mt-source-scrollbar-thumb"></div>
+    <div id="source-shell" style="display: ${isSource ? 'flex' : 'none'};">
+        <div id="mt-source-sticky" class="is-empty">
+            <div id="mt-source-sticky-content"></div>
+        </div>
+        <div id="source-container">
+            <div id="mt-source-highlight-error" style="display: ${sourceHighlightError ? 'block' : 'none'};">${sourceHighlightError ?? ''}</div>
+            <div id="line-numbers"></div>
+            <pre class="language-markdown"><code class="language-markdown" id="source-code">${highlightedSource}</code></pre>
+            <div id="mt-source-scrollbar" aria-hidden="true">
+                <div id="mt-source-scrollbar-track">
+                    <div id="mt-source-scrollbar-thumb"></div>
+                </div>
             </div>
         </div>
     </div>

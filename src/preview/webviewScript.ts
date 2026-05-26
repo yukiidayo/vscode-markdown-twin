@@ -7,6 +7,7 @@ import {
 
 export interface BuildPreviewWebviewScriptArgs {
   sourceLineCount: number;
+  sourceLineOrigins: number[];
   sourceLineHeight: number;
   sourceText: string;
   sourceTokenThemeVars: Record<string, string>;
@@ -14,13 +15,14 @@ export interface BuildPreviewWebviewScriptArgs {
 }
 
 export function buildPreviewWebviewScript(args: BuildPreviewWebviewScriptArgs): string {
-  const { sourceLineCount, sourceLineHeight, sourceText, sourceTokenThemeVars, isSource } = args;
+  const { sourceLineCount, sourceLineOrigins, sourceLineHeight, sourceText, sourceTokenThemeVars, isSource } = args;
 
   return `
         const vscode = acquireVsCodeApi();
         let isSyncingScroll = false;
         let scrollTimeout;
         const initialSourceLineCount = ${sourceLineCount};
+        const initialSourceLineOrigins = ${JSON.stringify(sourceLineOrigins)};
         const initialSourceLineHeight = ${sourceLineHeight};
         const initialSourceText = ${JSON.stringify(sourceText)};
         const initialSourceTokenThemeVars = ${JSON.stringify(sourceTokenThemeVars)};
