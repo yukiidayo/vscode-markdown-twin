@@ -371,13 +371,14 @@ export class PreviewPanel {
     this._editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
   }
 
-  private createPreviewMarkdownEngine(): ReturnType<typeof createMarkdownPreviewEngine> {
+  private createPreviewMarkdownEngine(translated: TranslatedMarkdownResult): ReturnType<typeof createMarkdownPreviewEngine> {
     const webview = this._panel.webview;
     const document = this._editor.document;
     const previewConfig = vscode.workspace.getConfiguration('markdown.preview');
     return createMarkdownPreviewEngine({
       breaks: previewConfig.get<boolean>('breaks'),
       linkify: previewConfig.get<boolean>('linkify'),
+      mapSourceLine: line => translated.lineOrigins[line] ?? line,
       resolveResourceUri: href => resolveMarkdownResourceUri(href, document, webview),
       typographer: previewConfig.get<boolean>('typographer'),
       uriScheme: vscode.env.uriScheme,
@@ -385,7 +386,7 @@ export class PreviewPanel {
   }
 
   private renderPreviewHtml(translated: TranslatedMarkdownResult): string {
-    return this.createPreviewMarkdownEngine().render(translated.text);
+    return this.createPreviewMarkdownEngine(translated).render(translated.text);
   }
 
   private async renderSourceView(translated: TranslatedMarkdownResult): Promise<{
@@ -394,7 +395,6 @@ export class PreviewPanel {
     sourceLineCount: number;
     sourceLineOrigins: number[];
     sourceLineHeight: number;
-    sourceTokenThemeVars: Record<string, string>;
     sourceHighlightError?: string;
   }> {
     const sourceMarkdown = translated.text;
@@ -417,7 +417,6 @@ export class PreviewPanel {
       sourceLineCount,
       sourceLineOrigins: translated.lineOrigins,
       sourceLineHeight,
-      sourceTokenThemeVars: this._sourceHighlighter.resolveTokenThemeVars(),
       sourceHighlightError,
     };
   }
@@ -428,7 +427,6 @@ export class PreviewPanel {
     sourceLineCount: number;
     sourceLineOrigins: number[];
     sourceLineHeight: number;
-    sourceTokenThemeVars: Record<string, string>;
     sourceHighlightError?: string;
   } {
     return {
@@ -437,7 +435,6 @@ export class PreviewPanel {
       sourceLineCount: translated.text.split(/\r?\n/).length,
       sourceLineOrigins: translated.lineOrigins,
       sourceLineHeight: 19,
-      sourceTokenThemeVars: this._sourceHighlighter.resolveTokenThemeVars(),
     };
   }
 
@@ -467,7 +464,6 @@ export class PreviewPanel {
         sourceLineCount: sourceView.sourceLineCount,
         sourceLineOrigins: sourceView.sourceLineOrigins,
         sourceLineHeight: sourceView.sourceLineHeight,
-        sourceTokenThemeVars: sourceView.sourceTokenThemeVars,
         sourceHighlightError: sourceView.sourceHighlightError,
         markdownCssUri,
         twinCssUri,
@@ -487,7 +483,6 @@ export class PreviewPanel {
         sourceLineCount: shouldRenderSource ? sourceView.sourceLineCount : undefined,
         sourceLineOrigins: shouldRenderSource ? sourceView.sourceLineOrigins : undefined,
         sourceLineHeight: shouldRenderSource ? sourceView.sourceLineHeight : undefined,
-        sourceTokenThemeVars: shouldRenderSource ? sourceView.sourceTokenThemeVars : undefined,
         sourceHighlightError: shouldRenderSource ? sourceView.sourceHighlightError : undefined
       });
     }

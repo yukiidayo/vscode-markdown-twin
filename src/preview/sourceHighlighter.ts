@@ -34,11 +34,6 @@ export class MarkdownSourceHighlighter {
     return renderedLines.join('\n');
   }
 
-  resolveTokenThemeVars(): Record<string, string> {
-    const themeId = vscode.workspace.getConfiguration('workbench').get<string>('colorTheme') ?? '';
-    return this.themeResolver.resolveTokenThemeVars(themeId);
-  }
-
   private renderTextMateLine(line: string, binaryTokens: Uint32Array, colorMap: string[]): string {
     if (line.length === 0 || binaryTokens.length === 0) {
       return '';

@@ -11,7 +11,7 @@ describe('Language Detector Tests', () => {
       expect(shouldTranslate('Hello World', 'ja')).toBe(false);
       expect(shouldTranslate('12345', 'ja')).toBe(false);
       expect(shouldTranslate('const x = 1;', 'ja')).toBe(false);
-      expect(shouldTranslate('mt-translation', 'ja')).toBe(false);
+      expect(shouldTranslate('code-line-content', 'ja')).toBe(false);
     });
 
     it('should return false for empty or whitespace strings', () => {

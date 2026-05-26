@@ -20,6 +20,18 @@ describe('createMarkdownPreviewEngine', () => {
     expect(html).toContain('dir="auto"');
   });
 
+  it('maps rendered markdown lines back to original source lines', () => {
+    const md = createMarkdownPreviewEngine({
+      mapSourceLine: line => [4, 4, 10][line] ?? line,
+    });
+
+    const html = md.render('# Translated\n\nBody');
+
+    expect(html).toContain('data-line="4"');
+    expect(html).toContain('data-line="10"');
+    expect(html).not.toContain('data-line="2"');
+  });
+
   it('marks fenced code blocks with the VS Code preview hljs class', () => {
     const md = createMarkdownPreviewEngine();
 

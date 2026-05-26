@@ -102,17 +102,6 @@ export const WEBVIEW_SCRIPT_SHARED = `
             sourceContainerEl.style.setProperty('--mt-scroll-beyond-last-line', bottomPadding + 'px');
         }
 
-        function applySourceTokenThemeVars(themeVars) {
-            const sourceContainerEl = document.getElementById('source-container');
-            if (!sourceContainerEl || !themeVars || typeof themeVars !== 'object') return;
-            for (const key of Object.keys(themeVars)) {
-                const value = themeVars[key];
-                if (typeof value === 'string' && value.length > 0) {
-                    sourceContainerEl.style.setProperty(key, value);
-                }
-            }
-        }
-
         function setSourceHighlightError(message) {
             const banner = document.getElementById('mt-source-highlight-error');
             if (!banner) return;
@@ -603,7 +592,6 @@ export const WEBVIEW_SCRIPT_SYNC = `
             applyViewModeLayout(initialViewMode);
             applySourceEditorMetrics(initialSourceLineHeight);
             applyResolvedFoldBackground();
-            applySourceTokenThemeVars(initialSourceTokenThemeVars);
             bindSourceScrollbar();
             collectSourceHeadings();
             renderSourceStickyHeadings();
@@ -657,7 +645,6 @@ export const WEBVIEW_SCRIPT_SYNC = `
                     collectSourceHeadings();
                     applySourceEditorMetrics(message.sourceLineHeight);
                     applyResolvedFoldBackground();
-                    applySourceTokenThemeVars(message.sourceTokenThemeVars);
                     setSourceHighlightError(message.sourceHighlightError);
                     renderSourceStickyHeadings(true);
                 }

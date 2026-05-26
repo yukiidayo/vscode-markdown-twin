@@ -18,6 +18,7 @@ type RenderEnv = {
 
 export interface MarkdownPreviewEngineOptions {
   breaks?: boolean;
+  mapSourceLine?: (line: number) => number;
   linkify?: boolean;
   resolveResourceUri?: (href: string) => string;
   typographer?: boolean;
@@ -41,7 +42,7 @@ export function createMarkdownPreviewEngine(options: MarkdownPreviewEngineOption
   addLinkNormalizer(md, options);
   addLinkValidator(md);
   addLinkDataHref(md);
-  addSourceMapAttributes(md);
+  addSourceMapAttributes(md, options);
 
   return md;
 }
@@ -303,11 +304,13 @@ function addLinkValidator(md: MarkdownIt): void {
   };
 }
 
-function addSourceMapAttributes(md: MarkdownIt): void {
+function addSourceMapAttributes(md: MarkdownIt, engineOptions: MarkdownPreviewEngineOptions): void {
+  const mapLine = (line: number): number => engineOptions.mapSourceLine?.(line) ?? line;
+
   md.core.ruler.push('markdown_twin_source_map_data_attribute', (state: any): void => {
     for (const token of state.tokens as MarkdownToken[]) {
       if (token.map && token.type !== 'inline') {
-        token.attrSet('data-line', String(token.map[0]));
+        token.attrSet('data-line', String(mapLine(token.map[0])));
         token.attrJoin('dir', 'auto');
       }
     }
@@ -316,7 +319,9 @@ function addSourceMapAttributes(md: MarkdownIt): void {
   const originalHtmlBlockRenderer = md.renderer.rules.html_block;
   if (originalHtmlBlockRenderer) {
     md.renderer.rules.html_block = (tokens: MarkdownToken[], idx: number, options: unknown, env: unknown, self: any) => {
-      const line = tokens[idx].map?.[0];
+      const line = typeof tokens[idx].map?.[0] === 'number'
+        ? mapLine(tokens[idx].map[0])
+        : undefined;
       const marker = typeof line === 'number' ? `<div data-line="${line}" dir="auto"></div>\n` : '';
       return marker + originalHtmlBlockRenderer(tokens as any, idx, options as any, env, self);
     };
