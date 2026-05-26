@@ -1,15 +1,15 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import MarkdownIt from 'markdown-it';
 import { TranslationManager } from './translationManager';
 import { getTargetLanguageCode } from './languages';
 import { t } from './i18n';
 import { isCursor } from './utils';
-import { markdownTwinWebviewPlugin } from './preview/markdownTwinWebviewPlugin';
+import { createMarkdownPreviewEngine } from './preview/markdownEngine';
 import { buildPreviewWebviewHtml } from './preview/webviewHtml';
 import { MarkdownSourceHighlighter } from './preview/sourceHighlighter';
 import { runTranslationForDocument } from './translationRunner';
 import { escapeHtml } from './utils/html';
+import type { TranslatedMarkdownResult } from './translatedMarkdownBuilder';
 
 function createNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -18,6 +18,94 @@ function createNonce(): string {
     out += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return out;
+}
+
+function createLocalResourceRoots(extensionUri: vscode.Uri, document: vscode.TextDocument): vscode.Uri[] {
+  const roots = [vscode.Uri.file(path.join(extensionUri.fsPath, 'media'))];
+
+  if (document.uri.scheme === 'file') {
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+    roots.push(workspaceFolder?.uri ?? vscode.Uri.file(path.dirname(document.uri.fsPath)));
+  }
+
+  return roots;
+}
+
+function resolveMarkdownResourceUri(
+  href: string,
+  document: vscode.TextDocument,
+  webview: vscode.Webview
+): string {
+  try {
+    if (/^[a-z-]+:/i.test(href)) {
+      return /^file:/i.test(href)
+        ? webview.asWebviewUri(vscode.Uri.parse(href)).toString(true)
+        : href;
+    }
+
+    if (document.uri.scheme !== 'file') {
+      return href;
+    }
+
+    const match = /^([^?#]*)(\?[^#]*)?(#.*)?$/.exec(href);
+    const resourcePath = decodeURIComponent(match?.[1] ?? href).replace(/\\/g, '/');
+    const query = match?.[2]?.slice(1) ?? '';
+    const fragment = match?.[3]?.slice(1) ?? '';
+
+    const uri = resourcePath.startsWith('/')
+      ? resolveWorkspaceAbsoluteResource(resourcePath, document) ?? vscode.Uri.file(resourcePath)
+      : vscode.Uri.joinPath(vscode.Uri.file(path.dirname(document.uri.fsPath)), resourcePath);
+
+    return webview.asWebviewUri(uri.with({ query, fragment })).toString(true);
+  } catch {
+    return href;
+  }
+}
+
+function resolveWorkspaceAbsoluteResource(resourcePath: string, document: vscode.TextDocument): vscode.Uri | undefined {
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+  return workspaceFolder
+    ? vscode.Uri.joinPath(workspaceFolder.uri, resourcePath)
+    : undefined;
+}
+
+function getPreviewBodyClasses(): string[] {
+  const classes = ['vscode-body'];
+  const previewConfig = vscode.workspace.getConfiguration('markdown.preview');
+
+  if (previewConfig.get<boolean>('markEditorSelection', true)) {
+    classes.push('showEditorSelection');
+  }
+  if (previewConfig.get<boolean>('scrollBeyondLastLine', true)) {
+    classes.push('scrollBeyondLastLine');
+  }
+  if (previewConfig.get<boolean>('wordWrap', true)) {
+    classes.push('wordWrap');
+  }
+
+  return classes;
+}
+
+function getMarkdownStyleVars(): Record<string, string> {
+  const previewConfig = vscode.workspace.getConfiguration('markdown.preview');
+  const vars: Record<string, string> = {};
+
+  const fontFamily = previewConfig.get<string>('fontFamily');
+  if (fontFamily) {
+    vars['--markdown-font-family'] = fontFamily;
+  }
+
+  const fontSize = previewConfig.get<number>('fontSize');
+  if (typeof fontSize === 'number' && fontSize > 0) {
+    vars['--markdown-font-size'] = `${fontSize}px`;
+  }
+
+  const lineHeight = previewConfig.get<number>('lineHeight');
+  if (typeof lineHeight === 'number' && lineHeight > 0) {
+    vars['--markdown-line-height'] = String(lineHeight);
+  }
+
+  return vars;
 }
 
 export class PreviewPanel {
@@ -74,6 +162,7 @@ export class PreviewPanel {
     this._viewMode = mode;
     this._panel.webview.postMessage({ type: 'setViewMode', mode });
     this._syncShowingSourceContext();
+    void this._update();
   }
 
   private _syncShowingSourceContext(): void {
@@ -142,9 +231,7 @@ export class PreviewPanel {
       targetColumn,
       {
         enableScripts: true,
-        localResourceRoots: [
-          vscode.Uri.file(path.join(extensionUri.fsPath, 'media'))
-        ],
+        localResourceRoots: createLocalResourceRoots(extensionUri, activeEditor.document),
         retainContextWhenHidden: true
       }
     );
@@ -224,8 +311,11 @@ export class PreviewPanel {
 
     vscode.workspace.onDidChangeConfiguration(
       e => {
-        // テーマ変更時は再ハイライトのため再描画する。
-        if (e.affectsConfiguration('workbench.colorTheme') && this._isSameDocAsActive) {
+        // Markdownプレビュー設定やテーマ変更時は再描画する。
+        if (e.affectsConfiguration('markdown.preview') && this._isSameDocAsActive) {
+          this._isInitialized = false;
+          this._update();
+        } else if (e.affectsConfiguration('workbench.colorTheme') && this._isSameDocAsActive) {
           this._update();
         }
       },
@@ -281,49 +371,86 @@ export class PreviewPanel {
     this._editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
   }
 
-  private async _update() {
+  private createPreviewMarkdownEngine(): ReturnType<typeof createMarkdownPreviewEngine> {
     const webview = this._panel.webview;
     const document = this._editor.document;
-    const text = document.getText();
-    const md = new MarkdownIt({ html: true });
-
-    md.use((mdInstance) => {
-      const originalRender = mdInstance.renderer.render;
-      mdInstance.renderer.render = function (tokens: any[], options: any, env: any) {
-        // 各ブロック先頭行を data-line に埋め込み、スクロール同期に使う。
-        for (const token of tokens) {
-          if (token.map && token.nesting === 1) {
-            const line = token.map[0];
-            token.attrSet('data-line', line.toString());
-          }
-        }
-        return originalRender.apply(this, [tokens, options, env]);
-      };
+    const previewConfig = vscode.workspace.getConfiguration('markdown.preview');
+    return createMarkdownPreviewEngine({
+      breaks: previewConfig.get<boolean>('breaks'),
+      linkify: previewConfig.get<boolean>('linkify'),
+      resolveResourceUri: href => resolveMarkdownResourceUri(href, document, webview),
+      typographer: previewConfig.get<boolean>('typographer'),
+      uriScheme: vscode.env.uriScheme,
     });
+  }
 
-    // 翻訳結果を埋め込むためのWebview専用プラグイン。
-    md.use(markdownTwinWebviewPlugin, { translationManager: this.translationManager, document, langCode: this.langCode });
+  private renderPreviewHtml(translated: TranslatedMarkdownResult): string {
+    return this.createPreviewMarkdownEngine().render(translated.text);
+  }
 
-    const renderedHtml = md.render(text);
-
-    // sourceモード用の翻訳済みMarkdownを生成する。
-    const translatedSource = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
-    const sourceMarkdown = translatedSource.text;
+  private async renderSourceView(translated: TranslatedMarkdownResult): Promise<{
+    highlightedSource: string;
+    sourceText: string;
+    sourceLineCount: number;
+    sourceLineOrigins: number[];
+    sourceLineHeight: number;
+    sourceTokenThemeVars: Record<string, string>;
+    sourceHighlightError?: string;
+  }> {
+    const sourceMarkdown = translated.text;
     let highlightedSource = escapeHtml(sourceMarkdown);
     let sourceHighlightError: string | undefined;
-
     const sourceLineCount = sourceMarkdown.split(/\r?\n/).length;
     const sourceLineHeight = 19;
 
     try {
-        highlightedSource = await this._sourceHighlighter.highlight(sourceMarkdown);
+      highlightedSource = await this._sourceHighlighter.highlight(sourceMarkdown);
     } catch (err: any) {
       const reason = err?.message ?? String(err);
       sourceHighlightError = `Source highlight failed: ${reason}`;
       this.translationManager.logError(`Source highlight failed: ${reason}`, err, false);
     }
 
-    const sourceTokenThemeVars = this._sourceHighlighter.resolveTokenThemeVars();
+    return {
+      highlightedSource,
+      sourceText: sourceMarkdown,
+      sourceLineCount,
+      sourceLineOrigins: translated.lineOrigins,
+      sourceLineHeight,
+      sourceTokenThemeVars: this._sourceHighlighter.resolveTokenThemeVars(),
+      sourceHighlightError,
+    };
+  }
+
+  private emptySourceView(translated: TranslatedMarkdownResult): {
+    highlightedSource: string;
+    sourceText: string;
+    sourceLineCount: number;
+    sourceLineOrigins: number[];
+    sourceLineHeight: number;
+    sourceTokenThemeVars: Record<string, string>;
+    sourceHighlightError?: string;
+  } {
+    return {
+      highlightedSource: '',
+      sourceText: translated.text,
+      sourceLineCount: translated.text.split(/\r?\n/).length,
+      sourceLineOrigins: translated.lineOrigins,
+      sourceLineHeight: 19,
+      sourceTokenThemeVars: this._sourceHighlighter.resolveTokenThemeVars(),
+    };
+  }
+
+  private async _update() {
+    const webview = this._panel.webview;
+    const document = this._editor.document;
+    const translated = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
+    const shouldRenderPreview = this._viewMode === 'preview' || !this._isInitialized;
+    const shouldRenderSource = this._viewMode === 'source';
+    const renderedHtml = shouldRenderPreview ? this.renderPreviewHtml(translated) : undefined;
+    const sourceView = shouldRenderSource
+      ? await this.renderSourceView(translated)
+      : this.emptySourceView(translated);
 
     if (!this._isInitialized) {
       const twinCssUri = webview.asWebviewUri(
@@ -334,16 +461,18 @@ export class PreviewPanel {
       );
       webview.html = buildPreviewWebviewHtml({
         previewHeaderTitle: `Twin Preview ${path.basename(document.fileName)}`,
-        renderedHtml,
-        highlightedSource,
-        sourceText: sourceMarkdown,
-        sourceLineCount,
-        sourceLineOrigins: translatedSource.lineOrigins,
-        sourceLineHeight,
-        sourceTokenThemeVars,
-        sourceHighlightError,
+        renderedHtml: renderedHtml ?? '',
+        highlightedSource: sourceView.highlightedSource,
+        sourceText: sourceView.sourceText,
+        sourceLineCount: sourceView.sourceLineCount,
+        sourceLineOrigins: sourceView.sourceLineOrigins,
+        sourceLineHeight: sourceView.sourceLineHeight,
+        sourceTokenThemeVars: sourceView.sourceTokenThemeVars,
+        sourceHighlightError: sourceView.sourceHighlightError,
         markdownCssUri,
         twinCssUri,
+        bodyClasses: getPreviewBodyClasses(),
+        htmlStyleVars: getMarkdownStyleVars(),
         cspSource: webview.cspSource,
         scriptNonce: this._scriptNonce,
         viewMode: this._viewMode
@@ -353,13 +482,13 @@ export class PreviewPanel {
       webview.postMessage({
         type: 'update',
         html: renderedHtml,
-        sourceHtml: highlightedSource,
-        sourceText: sourceMarkdown,
-        sourceLineCount,
-        sourceLineOrigins: translatedSource.lineOrigins,
-        sourceLineHeight,
-        sourceTokenThemeVars,
-        sourceHighlightError
+        sourceHtml: shouldRenderSource ? sourceView.highlightedSource : undefined,
+        sourceText: shouldRenderSource ? sourceView.sourceText : undefined,
+        sourceLineCount: shouldRenderSource ? sourceView.sourceLineCount : undefined,
+        sourceLineOrigins: shouldRenderSource ? sourceView.sourceLineOrigins : undefined,
+        sourceLineHeight: shouldRenderSource ? sourceView.sourceLineHeight : undefined,
+        sourceTokenThemeVars: shouldRenderSource ? sourceView.sourceTokenThemeVars : undefined,
+        sourceHighlightError: shouldRenderSource ? sourceView.sourceHighlightError : undefined
       });
     }
   }

@@ -12,12 +12,8 @@
   font-size: 12px;
 }
 
-#preview-container {
-  line-height: 19px;
-}
-
-body.mt-preview-mode #preview-container {
-  border-top: 1px solid var(--vscode-panel-border, var(--vscode-editorWidget-border, transparent));
+body.mt-preview-mode #mt-topbar {
+  display: none;
 }
 
 #source-shell {
@@ -368,7 +364,7 @@ pre.language-markdown {
   cursor: text;
 }
 
-.code-line {
+#source-code .code-line {
   display: flex;
   align-items: flex-start;
   width: 100%;
@@ -382,13 +378,13 @@ pre.language-markdown {
   word-break: break-all;
 }
 
-.code-line-content {
+#source-code .code-line-content {
   flex: 1 1 auto;
   min-width: 0;
   cursor: text;
 }
 
-.ordered-list-line .code-line-content {
+#source-code .ordered-list-line .code-line-content {
   padding-left: 8px;
 }
 
@@ -444,7 +440,7 @@ pre.language-markdown {
 }
 
 /* Collapsed row */
-.code-line[data-fold-state="collapsed"] {
+#source-code .code-line[data-fold-state="collapsed"] {
   background-color: var(--mt-fold-bg, var(--vscode-editor-foldBackground, var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.22))));
 }
 
@@ -465,16 +461,16 @@ pre.language-markdown {
   word-break: normal;
 }
 
-.code-line[data-fold-state="none"] .folded-summary,
-.code-line[data-fold-state="expanded"] .folded-summary {
+#source-code .code-line[data-fold-state="none"] .folded-summary,
+#source-code .code-line[data-fold-state="expanded"] .folded-summary {
   display: none;
 }
 
-.code-line[data-fold-state="collapsed"] .code-line-content {
+#source-code .code-line[data-fold-state="collapsed"] .code-line-content {
   display: none;
 }
 
-.code-line[data-fold-state="collapsed"] .folded-summary {
+#source-code .code-line[data-fold-state="collapsed"] .folded-summary {
   display: flex;
 }
 
@@ -612,41 +608,4 @@ pre.language-markdown {
 
 .token.comment {
   color: var(--mt-token-comment, var(--vscode-symbolIcon-operatorForeground, var(--vscode-descriptionForeground)));
-}
-
-
-/* Preview mode: align typography and spacing closer to editor */
-body.mt-preview-mode {
-  font-family: var(--vscode-editor-font-family, var(--markdown-font-family, inherit));
-  font-size: var(--vscode-editor-font-size, var(--markdown-font-size, 14px));
-  line-height: 19px;
-  padding: 0;
-}
-
-body.mt-preview-mode h1,
-body.mt-preview-mode h2,
-body.mt-preview-mode h3,
-body.mt-preview-mode h4,
-body.mt-preview-mode h5,
-body.mt-preview-mode h6 {
-  margin-top: 16px;
-  margin-bottom: 8px;
-  line-height: 1.3;
-}
-
-body.mt-preview-mode p,
-body.mt-preview-mode ul,
-body.mt-preview-mode ol,
-body.mt-preview-mode pre {
-  margin-top: 0;
-  margin-bottom: 10px;
-}
-
-body.mt-preview-mode ul,
-body.mt-preview-mode ol {
-  padding-left: 1.4em;
-}
-
-body.mt-preview-mode li {
-  margin: 0.15em 0;
 }

@@ -648,17 +648,21 @@ export const WEBVIEW_SCRIPT_SYNC = `
         window.addEventListener('message', event => {
             const message = event.data;
             if (message.type === 'update') {
-                document.getElementById('preview-container').innerHTML = message.html;
-                latestSourceLines = parseSourceLines(message.sourceText, message.sourceLineCount);
-                latestSourceLineOrigins = normalizeSourceLineOrigins(message.sourceLineOrigins, message.sourceLineCount);
-                collectSourceHeadings();
-                applySourceEditorMetrics(message.sourceLineHeight);
-                applyResolvedFoldBackground();
-                applySourceTokenThemeVars(message.sourceTokenThemeVars);
-                setSourceHighlightError(message.sourceHighlightError);
-                renderSourceStickyHeadings(true);
+                if (typeof message.html === 'string') {
+                    document.getElementById('preview-container').innerHTML = message.html;
+                }
+                if (typeof message.sourceText === 'string') {
+                    latestSourceLines = parseSourceLines(message.sourceText, message.sourceLineCount);
+                    latestSourceLineOrigins = normalizeSourceLineOrigins(message.sourceLineOrigins, message.sourceLineCount);
+                    collectSourceHeadings();
+                    applySourceEditorMetrics(message.sourceLineHeight);
+                    applyResolvedFoldBackground();
+                    applySourceTokenThemeVars(message.sourceTokenThemeVars);
+                    setSourceHighlightError(message.sourceHighlightError);
+                    renderSourceStickyHeadings(true);
+                }
                 const codeEl = document.getElementById('source-code');
-                if (codeEl) {
+                if (codeEl && typeof message.sourceHtml === 'string') {
                     renderSourceCode(message.sourceHtml, message.sourceText, message.sourceLineCount, message.sourceLineOrigins);
                 }
             } else if (message.type === 'setViewMode') {

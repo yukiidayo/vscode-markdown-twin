@@ -13,6 +13,8 @@ export interface BuildPreviewWebviewHtmlArgs {
   sourceHighlightError?: string;
   markdownCssUri: vscode.Uri;
   twinCssUri: vscode.Uri;
+  bodyClasses: string[];
+  htmlStyleVars: Record<string, string>;
   cspSource: string;
   scriptNonce: string;
   viewMode: 'preview' | 'source';
@@ -31,6 +33,8 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
     sourceHighlightError,
     markdownCssUri,
     twinCssUri,
+    bodyClasses,
+    htmlStyleVars,
     cspSource,
     scriptNonce,
     viewMode
@@ -38,6 +42,11 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
 
   const isPreview = viewMode === 'preview';
   const isSource = viewMode === 'source';
+  const modeClass = isSource ? 'mt-source-mode' : 'mt-preview-mode';
+  const classAttr = [...bodyClasses, modeClass].join(' ');
+  const styleAttr = Object.entries(htmlStyleVars)
+    .map(([key, value]) => `${key}: ${value};`)
+    .join(' ');
   const script = buildPreviewWebviewScript({
     sourceLineCount,
     sourceLineOrigins,
@@ -48,7 +57,7 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
   });
 
   return `<!DOCTYPE html>
-<html lang="en" class="${isSource ? 'mt-source-mode' : 'mt-preview-mode'}">
+<html lang="en" class="${classAttr}" style="${styleAttr}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -57,7 +66,7 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
     <link rel="stylesheet" href="${markdownCssUri}">
     <link rel="stylesheet" href="${twinCssUri}">
 </head>
-<body class="${isSource ? 'mt-source-mode' : 'mt-preview-mode'}" data-vscode-context='{"webviewSection":"markdownTwinContent","preventDefaultContextMenuItems":true}'>
+<body class="${classAttr}" data-vscode-context='{"webviewSection":"markdownTwinContent","preventDefaultContextMenuItems":true}'>
     <div id="mt-topbar">${previewHeaderTitle}</div>
     <div id="preview-container" style="display: ${isPreview ? 'block' : 'none'};">${renderedHtml}</div>
     <div id="source-shell" style="display: ${isSource ? 'flex' : 'none'};">

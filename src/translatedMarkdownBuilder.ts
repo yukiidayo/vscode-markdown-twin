@@ -59,16 +59,38 @@ function collectInlineReplacements(
   const tokens = md.parse(source, {});
   const rangeCursor = new Map<string, number>();
   const replacements: Replacement[] = [];
+  let tableRowRange: [number, number] | null = null;
+  let inTableCell = false;
 
   for (const token of tokens) {
+    if (token.type === 'tr_open' && Array.isArray(token.map) && token.map.length >= 2) {
+      tableRowRange = [token.map[0], token.map[1]];
+      continue;
+    }
+    if (token.type === 'tr_close') {
+      tableRowRange = null;
+      continue;
+    }
+    if (token.type === 'th_open' || token.type === 'td_open') {
+      inTableCell = true;
+      continue;
+    }
+    if (token.type === 'th_close' || token.type === 'td_close') {
+      inTableCell = false;
+      continue;
+    }
+
     if (EXCLUDED_TOKEN_TYPES.includes(token.type as any)) continue;
     if (token.type !== 'inline') continue;
 
     const translation = getTranslation(token.content, langCode);
     if (!translation || translation === token.content) continue;
-    if (!Array.isArray(token.map) || token.map.length < 2) continue;
+    const tokenRange = Array.isArray(token.map) && token.map.length >= 2
+      ? [token.map[0], token.map[1]] as [number, number]
+      : tableRowRange;
+    if (!tokenRange) continue;
 
-    const [startLine, endLineExclusive] = token.map;
+    const [startLine, endLineExclusive] = tokenRange;
     const rangeStart = lineOffsets[startLine] ?? 0;
     const rangeEnd = lineOffsets[endLineExclusive] ?? source.length;
     const rangeKey = `${startLine}:${endLineExclusive}`;
@@ -80,9 +102,7 @@ function collectInlineReplacements(
 
     rangeCursor.set(rangeKey, hitIndex + token.content.length);
 
-    const replacementText = mode === 'translation-only'
-      ? translation
-      : `${token.content}\n\n*${translation}*`;
+    const replacementText = buildReplacementText(token.content, translation, mode, inTableCell);
 
     replacements.push({
       start: hitIndex,
@@ -94,6 +114,32 @@ function collectInlineReplacements(
   }
 
   return normalizeReplacements(replacements);
+}
+
+function buildReplacementText(
+  original: string,
+  translation: string,
+  mode: TranslationViewMode,
+  inTableCell: boolean
+): string {
+  if (inTableCell) {
+    const tableSafeTranslation = normalizeTableCellText(translation);
+    return mode === 'translation-only'
+      ? tableSafeTranslation
+      : `${normalizeTableCellText(original)}<br><em>${tableSafeTranslation}</em>`;
+  }
+
+  return mode === 'translation-only'
+    ? translation
+    : `${original}\n\n*${translation}*`;
+}
+
+function normalizeTableCellText(text: string): string {
+  return text
+    .replace(/\r?\n+/g, ' ')
+    .replace(/\|/g, '\\|')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function normalizeReplacements(replacements: Replacement[]): Replacement[] {

@@ -426,13 +426,10 @@
           "order": 7
         }
       }
-    },
-    "markdown.markdownItPlugins": true,
-    "markdown.previewStyles": [
-      "./media/markdown-twin.css"
-    ]
+    }
   },
   "dependencies": {
+    "highlight.js": "^11.11.1",
     "markdown-it": "^14.0.0",
     "prismjs": "^1.30.0",
     "vscode-oniguruma": "^2.0.1",
