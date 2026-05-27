@@ -18,9 +18,19 @@ import { runTranslationForDocument } from './translationRunner';
 
 let translationManager: TranslationManager;
 
+type ToggleTranslationHandler = (requestedLangCode?: string) => Promise<void>;
+
+interface ExtensionServices {
+  context: vscode.ExtensionContext;
+  apiKeyManager: ApiKeyManager;
+  translationManager: TranslationManager;
+  statusBar: StatusBar;
+  providerSelector: ProviderSelector;
+}
+
 function syncTargetLangContext(): void {
   const code = getTargetLanguageCode();
-  vscode.commands.executeCommand('setContext', 'markdownTwin.targetLang', code);
+  void vscode.commands.executeCommand('setContext', 'markdownTwin.targetLang', code);
 }
 
 function resolveTranslationDocument(): vscode.TextDocument | undefined {
@@ -53,8 +63,6 @@ async function applyTargetLanguageByCode(code: string): Promise<void> {
 async function migrateLegacySettings(): Promise<void> {
   const config = vscode.workspace.getConfiguration('markdownTwin');
 
-  // 旧設定の移行:
-  // 表示名や旧形式で保存された値を正規化ID/コードへ統一する
   const rawProvider = config.get<string>('provider');
   const providerId = normalizeProviderId(rawProvider);
   if (rawProvider && rawProvider !== providerId) {
@@ -86,31 +94,20 @@ export async function activate(context: vscode.ExtensionContext) {
   statusBar.showOffline();
 
   const providerSelector = new ProviderSelector(apiKeyManager, translationManager, statusBar, context.extensionUri);
+  const services: ExtensionServices = { context, apiKeyManager, translationManager, statusBar, providerSelector };
 
   syncTargetLangContext();
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration(async e => {
-      if (e.affectsConfiguration('markdownTwin.targetLanguage')) {
-        syncTargetLangContext();
-        const activePanel = PreviewPanel.getActivePanel();
-        if (activePanel) {
-          await PreviewPanel.createOrShow(context.extensionUri, translationManager, activePanel.editorDocument);
-        }
+  registerConfigurationSync(services);
+  registerCommands(services, createToggleTranslationHandler(services));
+  registerEditorDocumentListeners(services);
+  registerFirstRunApiKeyPrompt(services);
+  context.subscriptions.push(statusBar);
+}
 
-        if (translationManager.isActive()) {
-          await retranslateActivePreview(translationManager, { clearCache: true });
-        } else {
-          statusBar.showOffline();
-        }
-      }
+function createToggleTranslationHandler(services: ExtensionServices): ToggleTranslationHandler {
+  const { context, apiKeyManager, translationManager, providerSelector } = services;
 
-      if (e.affectsConfiguration('markdownTwin.provider') && !translationManager.isActive()) {
-        statusBar.showOffline();
-      }
-    })
-  );
-
-  const toggleHandler = async (requestedLangCode?: string) => {
+  return async (requestedLangCode?: string) => {
     if (requestedLangCode) {
       await applyTargetLanguageByCode(requestedLangCode);
     }
@@ -123,15 +120,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
     const activeEditor = vscode.window.activeTextEditor;
     const canCreatePanelFromActiveEditor = !!activeEditor && activeEditor.document.uri.toString() === document.uri.toString();
-
     const config = vscode.workspace.getConfiguration('markdownTwin');
     const code = getTargetLanguageCode();
-
     const targetKey = `${document.uri.toString()}@${code}`;
-    const panelExists = PreviewPanel.allPanels.has(targetKey);
 
-    if (panelExists) {
-      // 既存パネルを再利用しつつ、翻訳状態をアクティブに保つ
+    if (PreviewPanel.allPanels.has(targetKey)) {
       await retranslatePreviewDocument({
         extensionUri: context.extensionUri,
         translationManager,
@@ -163,130 +156,114 @@ export async function activate(context: vscode.ExtensionContext) {
 
     await vscode.commands.executeCommand('setContext', 'markdownTwin.translationActive', true);
     const panelReady = await PreviewPanel.createOrShow(context.extensionUri, translationManager, document);
-    if (!panelReady) {
-      return;
-    }
+    if (!panelReady) return;
 
     await runTranslationForDocument(translationManager, document, { overrideProvider: providerId });
   };
+}
+
+function registerConfigurationSync(services: ExtensionServices): void {
+  const { context, translationManager, statusBar } = services;
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('markdownTwin.toggleTranslation', toggleHandler)
+    vscode.workspace.onDidChangeConfiguration(async e => {
+      if (e.affectsConfiguration('markdownTwin.targetLanguage')) {
+        syncTargetLangContext();
+        const activePanel = PreviewPanel.getActivePanel();
+        if (activePanel) {
+          await PreviewPanel.createOrShow(context.extensionUri, translationManager, activePanel.editorDocument);
+        }
+
+        if (translationManager.isActive()) {
+          await retranslateActivePreview(translationManager, { clearCache: true });
+        } else {
+          statusBar.showOffline();
+        }
+      }
+
+      if (e.affectsConfiguration('markdownTwin.provider') && !translationManager.isActive()) {
+        statusBar.showOffline();
+      }
+    })
   );
+}
+
+function registerCommands(services: ExtensionServices, toggleHandler: ToggleTranslationHandler): void {
+  const { context, apiKeyManager, translationManager, providerSelector } = services;
+
+  registerCommand(context, 'markdownTwin.toggleTranslation', toggleHandler);
 
   for (const lang of SUPPORTED_LANGUAGES) {
-    context.subscriptions.push(
-      vscode.commands.registerCommand(`markdownTwin.toggleTranslation.${lang.code}`, () => toggleHandler(lang.code))
-    );
+    registerCommand(context, `markdownTwin.toggleTranslation.${lang.code}`, () => toggleHandler(lang.code));
   }
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownTwin.toggleBilingual', () => {
-      translationManager.toggleMode();
-    })
-  );
+  registerCommand(context, 'markdownTwin.toggleBilingual', () => {
+    translationManager.toggleMode();
+  });
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownTwin.selectProvider', async () => {
-      await providerSelector.showMenu();
-    })
-  );
+  registerCommand(context, 'markdownTwin.selectProvider', async () => {
+    await providerSelector.showMenu();
+  });
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownTwin.setApiKey', async () => {
-      const keyProviders = PROVIDER_DEFS
-        .filter(p => p.requiresKey)
-        .map(p => ({ label: p.displayName, id: p.id }));
-      const picked = await vscode.window.showQuickPick(keyProviders, {
-        title: `Markdown Twin: ${t('apiKeySetButton')}`,
-        placeHolder: t('selectProviderToReEnter'),
-      });
-      if (!picked) return;
-      const existing = await apiKeyManager.getKey(picked.id);
-      await apiKeyManager.prompt(picked.id, existing);
-    })
-  );
+  registerCommand(context, 'markdownTwin.setApiKey', async () => {
+    const keyProviders = PROVIDER_DEFS
+      .filter(p => p.requiresKey)
+      .map(p => ({ label: p.displayName, id: p.id }));
+    const picked = await vscode.window.showQuickPick(keyProviders, {
+      title: `Markdown Twin: ${t('apiKeySetButton')}`,
+      placeHolder: t('selectProviderToReEnter'),
+    });
+    if (!picked) return;
+    const existing = await apiKeyManager.getKey(picked.id);
+    await apiKeyManager.prompt(picked.id, existing);
+  });
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownTwin.copyTranslatedMarkdown', async () => {
-      const activePanel = PreviewPanel.getActivePanel();
-      if (!activePanel) return;
-      try {
-        const translated = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
-        await vscode.env.clipboard.writeText(translated.text);
-        vscode.window.showInformationMessage(t('copiedToClipboard'));
-      } catch (err: any) {
-        translationManager.logError('Failed to copy translated markdown', err);
-      }
-    })
-  );
+  registerCommand(context, 'markdownTwin.copyTranslatedMarkdown', async () => {
+    const activePanel = PreviewPanel.getActivePanel();
+    if (!activePanel) return;
+    try {
+      const translated = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
+      await vscode.env.clipboard.writeText(translated.text);
+      vscode.window.showInformationMessage(t('copiedToClipboard'));
+    } catch (err: any) {
+      translationManager.logError('Failed to copy translated markdown', err);
+    }
+  });
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownTwin.exportTranslatedMarkdown', async () => {
-      const activePanel = PreviewPanel.getActivePanel();
-      if (!activePanel) return;
-      try {
-        const translated = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
-        const mdText = translated.text;
+  registerCommand(context, 'markdownTwin.exportTranslatedMarkdown', async () => {
+    const activePanel = PreviewPanel.getActivePanel();
+    if (!activePanel) return;
+    try {
+      const translated = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
+      const saveUri = await promptForTranslatedMarkdownSaveUri(activePanel);
+      if (!saveUri) return;
 
-        const docUri = activePanel.editorDocument.uri;
-        const uriPath = docUri.path;
-        const lastSlash = uriPath.lastIndexOf('/');
-        const fileName = lastSlash !== -1 ? uriPath.substring(lastSlash + 1) : 'document.md';
-        const lastDot = fileName.lastIndexOf('.');
-        const baseName = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
+      await vscode.workspace.fs.writeFile(saveUri, Buffer.from(translated.text, 'utf8'));
+      vscode.window.showInformationMessage(t('exportedSuccessfully', basenameFromUri(saveUri, 'translated.md')));
+    } catch (err: any) {
+      translationManager.logError('Failed to export translated markdown', err);
+    }
+  });
 
-        const defaultFileName = `${baseName}.${activePanel.langCode}.md`;
+  registerCommand(context, 'markdownTwin.openTranslatedSource', () => {
+    PreviewPanel.getActivePanel()?.setViewMode('source');
+  });
 
-        const saveUri = await vscode.window.showSaveDialog({
-          defaultUri: vscode.Uri.joinPath(docUri, '..', defaultFileName),
-          filters: {
-            Markdown: ['md', 'markdown']
-          }
-        });
+  registerCommand(context, 'markdownTwin.openPreviewFromSource', () => {
+    PreviewPanel.getActivePanel()?.setViewMode('preview');
+  });
 
-        if (saveUri) {
-          const buffer = Buffer.from(mdText, 'utf8');
-          await vscode.workspace.fs.writeFile(saveUri, buffer);
-          const saveLastSlash = saveUri.path.lastIndexOf('/');
-          const saveFileName = saveLastSlash !== -1 ? saveUri.path.substring(saveLastSlash + 1) : 'translated.md';
-          vscode.window.showInformationMessage(t('exportedSuccessfully', saveFileName));
-        }
-      } catch (err: any) {
-        translationManager.logError('Failed to export translated markdown', err);
-      }
-    })
-  );
+  registerCommand(context, 'markdownTwin.copyFromPreviewContext', async () => {
+    await vscode.commands.executeCommand('editor.action.clipboardCopyAction');
+  });
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownTwin.openTranslatedSource', () => {
-      const activePanel = PreviewPanel.getActivePanel();
-      if (activePanel) {
-        activePanel.setViewMode('source');
-      }
-    })
-  );
+  registerCommand(context, 'markdownTwin.retranslateFromPreviewContext', async () => {
+    await retranslateActivePreview(translationManager, { clearCache: true });
+  });
+}
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownTwin.openPreviewFromSource', () => {
-      const activePanel = PreviewPanel.getActivePanel();
-      if (activePanel) {
-        activePanel.setViewMode('preview');
-      }
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownTwin.copyFromPreviewContext', async () => {
-      await vscode.commands.executeCommand('editor.action.clipboardCopyAction');
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownTwin.retranslateFromPreviewContext', async () => {
-      await retranslateActivePreview(translationManager, { clearCache: true });
-    })
-  );
+function registerEditorDocumentListeners(services: ExtensionServices): void {
+  const { context, translationManager } = services;
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(async editor => {
@@ -297,18 +274,16 @@ export async function activate(context: vscode.ExtensionContext) {
         p => p.editorDocumentUri.toString() === uriStr
       );
 
-      if (panelsForDoc.length > 0) {
-        const code = getTargetLanguageCode();
+      if (panelsForDoc.length === 0) return;
 
-        const preferredPanel = panelsForDoc.find(p => p.langCode === code) ?? panelsForDoc[0];
-        PreviewPanel.currentPanel = preferredPanel;
+      const code = getTargetLanguageCode();
+      PreviewPanel.currentPanel = panelsForDoc.find(p => p.langCode === code) ?? panelsForDoc[0];
 
-        if (translationManager.isActive()) {
-          await retranslatePreviewDocument({
-            translationManager,
-            document: editor.document,
-          });
-        }
+      if (translationManager.isActive()) {
+        await retranslatePreviewDocument({
+          translationManager,
+          document: editor.document,
+        });
       }
     })
   );
@@ -324,10 +299,12 @@ export async function activate(context: vscode.ExtensionContext) {
       translationManager.closeDocument(doc.uri);
     })
   );
+}
 
-  context.subscriptions.push(statusBar);
-
+function registerFirstRunApiKeyPrompt(services: ExtensionServices): void {
+  const { context, apiKeyManager } = services;
   let firstRunChecked = false;
+
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument(async doc => {
       if (firstRunChecked || doc.languageId !== 'markdown') return;
@@ -347,6 +324,34 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     })
   );
+}
+
+function registerCommand(
+  context: vscode.ExtensionContext,
+  command: string,
+  callback: (...args: any[]) => any
+): void {
+  context.subscriptions.push(vscode.commands.registerCommand(command, callback));
+}
+
+async function promptForTranslatedMarkdownSaveUri(activePanel: PreviewPanel): Promise<vscode.Uri | undefined> {
+  const docUri = activePanel.editorDocument.uri;
+  const fileName = basenameFromUri(docUri, 'document.md');
+  const lastDot = fileName.lastIndexOf('.');
+  const baseName = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
+  const defaultFileName = `${baseName}.${activePanel.langCode}.md`;
+
+  return vscode.window.showSaveDialog({
+    defaultUri: vscode.Uri.joinPath(docUri, '..', defaultFileName),
+    filters: {
+      Markdown: ['md', 'markdown']
+    }
+  });
+}
+
+function basenameFromUri(uri: vscode.Uri, fallback: string): string {
+  const lastSlash = uri.path.lastIndexOf('/');
+  return lastSlash !== -1 ? uri.path.substring(lastSlash + 1) : fallback;
 }
 
 export function deactivate() {

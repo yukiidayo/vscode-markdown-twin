@@ -1,4 +1,5 @@
 export { WEBVIEW_SCRIPT_SHARED } from './shared';
+export { WEBVIEW_SCRIPT_SOURCE_UI } from './sourceUi';
 export { WEBVIEW_SCRIPT_FOLDING } from './folding';
 export { WEBVIEW_SCRIPT_SOURCE_RENDERING } from './sourceRendering';
 export { WEBVIEW_SCRIPT_STICKY } from './sticky';

@@ -171,48 +171,54 @@ export class PreviewPanel {
     this._editor = editor;
     this.langCode = langCode;
 
-    this._update();
+    void this._update();
+    this._registerPanelLifecycle();
+    this._registerWebviewMessages();
+    this._registerWorkspaceListeners();
+    this._registerEditorScrollSync();
+    this._registerTranslationUpdates();
+  }
 
+  private _registerPanelLifecycle(): void {
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
     this._panel.onDidChangeViewState(
       () => {
-        if (this._panel.active) {
-          PreviewPanel.currentPanel = this;
-          this._syncShowingSourceContext();
-          if (this.translationManager.isActive()) {
-            void runTranslationForDocument(this.translationManager, this._editor.document);
-          } else {
-            this._update();
-          }
+        if (!this._panel.active) return;
+        PreviewPanel.currentPanel = this;
+        this._syncShowingSourceContext();
+        if (this.translationManager.isActive()) {
+          void runTranslationForDocument(this.translationManager, this._editor.document);
+        } else {
+          void this._update();
         }
       },
       null,
       this._disposables
     );
+  }
 
+  private _registerWebviewMessages(): void {
     this._panel.webview.onDidReceiveMessage(
       message => {
-        if (message.command === 'scroll') {
-          if (!shouldScrollEditorWithPreview()) {
-            return;
-          }
-          this._lastSyncedLine = normalizeLineNumber(message.line);
-          this._setScrollLeader('webview');
-          this._suppressEditorScrollUntil = Date.now() + 220;
-          this._handleScrollMessage(this._lastSyncedLine);
-        }
+        if (message.command !== 'scroll') return;
+        if (!shouldScrollEditorWithPreview()) return;
+
+        this._lastSyncedLine = normalizeLineNumber(message.line);
+        this._setScrollLeader('webview');
+        this._suppressEditorScrollUntil = Date.now() + 220;
+        this._handleScrollMessage(this._lastSyncedLine);
       },
       null,
       this._disposables
     );
+  }
 
+  private _registerWorkspaceListeners(): void {
     vscode.workspace.onDidChangeTextDocument(
       e => {
-        if (e.document.uri.toString() === this._editor.document.uri.toString()) {
-          if (this._isSameDocAsActive) {
-            this._update();
-          }
+        if (e.document.uri.toString() === this._editor.document.uri.toString() && this._isSameDocAsActive) {
+          void this._update();
         }
       },
       null,
@@ -223,40 +229,40 @@ export class PreviewPanel {
       e => {
         if (e.affectsConfiguration('markdown.preview') && this._isSameDocAsActive) {
           this._isInitialized = false;
-          this._update();
+          void this._update();
         } else if (e.affectsConfiguration('workbench.colorTheme') && this._isSameDocAsActive) {
-          this._update();
+          void this._update();
         }
       },
       null,
       this._disposables
     );
+  }
 
+  private _registerEditorScrollSync(): void {
     vscode.window.onDidChangeTextEditorVisibleRanges(
       e => {
-        if (this._isEditorForDocument(e.textEditor) && e.visibleRanges.length > 0) {
-          if (!shouldScrollPreviewWithEditor()) {
-            return;
-          }
-          if (Date.now() < this._suppressEditorScrollUntil || this._hasActiveScrollLeader('webview')) {
-            return;
-          }
-          const topLine = e.visibleRanges[0].start.line;
-          this._editor = e.textEditor;
-          this._lastSyncedLine = topLine;
-          this._setScrollLeader('editor', 180);
-          this._panel.webview.postMessage({ type: 'scroll', line: topLine, origin: 'editor' });
-        }
+        if (!this._isEditorForDocument(e.textEditor) || e.visibleRanges.length === 0) return;
+        if (!shouldScrollPreviewWithEditor()) return;
+        if (Date.now() < this._suppressEditorScrollUntil || this._hasActiveScrollLeader('webview')) return;
+
+        const topLine = e.visibleRanges[0].start.line;
+        this._editor = e.textEditor;
+        this._lastSyncedLine = topLine;
+        this._setScrollLeader('editor', 180);
+        void this._panel.webview.postMessage({ type: 'scroll', line: topLine, origin: 'editor' });
       },
       null,
       this._disposables
     );
+  }
 
+  private _registerTranslationUpdates(): void {
     this._disposables.push(
       this.translationManager.onTranslationUpdated((updatedUri) => {
         const docUriStr = this._editor.document.uri.toString();
         if (!updatedUri || updatedUri.toString() === docUriStr) {
-          this._update();
+          void this._update();
         }
       })
     );

@@ -4,6 +4,7 @@ import {
   WEBVIEW_SCRIPT_FOLDING,
   WEBVIEW_SCRIPT_NAVIGATION,
   WEBVIEW_SCRIPT_SHARED,
+  WEBVIEW_SCRIPT_SOURCE_UI,
   WEBVIEW_SCRIPT_SOURCE_RENDERING,
   WEBVIEW_SCRIPT_STICKY,
 } from './webviewScripts';
@@ -33,6 +34,7 @@ export function buildPreviewWebviewScript(args: BuildPreviewWebviewScriptArgs): 
         const collapsedFoldStarts = new Set();
         let foldRangeByStart = new Map();
 ${WEBVIEW_SCRIPT_SHARED}
+${WEBVIEW_SCRIPT_SOURCE_UI}
 ${WEBVIEW_SCRIPT_FOLDING}
 ${WEBVIEW_SCRIPT_SOURCE_RENDERING}
 ${WEBVIEW_SCRIPT_NAVIGATION}
