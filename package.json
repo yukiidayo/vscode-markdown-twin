@@ -1,13 +1,18 @@
 {
-  "name": "markdown-twin",
+  "name": "vscode-markdown-twin",
   "displayName": "Markdown Twin",
   "description": "Inline bilingual translation for Markdown preview",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "publisher": "yukiidayo",
+  "license": "MIT",
   "icon": "icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yukiidayo/markdown-twin.git"
+    "url": "https://github.com/yukiidayo/vscode-markdown-twin.git"
+  },
+  "homepage": "https://github.com/yukiidayo/vscode-markdown-twin#readme",
+  "bugs": {
+    "url": "https://github.com/yukiidayo/vscode-markdown-twin/issues"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -15,6 +20,18 @@
   "categories": [
     "Other"
   ],
+  "keywords": [
+    "markdown",
+    "translation",
+    "preview",
+    "bilingual",
+    "documentation",
+    "localization"
+  ],
+  "galleryBanner": {
+    "color": "#0f172a",
+    "theme": "dark"
+  },
   "activationEvents": [
     "onStartupFinished"
   ],
