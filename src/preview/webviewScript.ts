@@ -1,9 +1,12 @@
 import {
+  WEBVIEW_SCRIPT_BOOTSTRAP,
+  WEBVIEW_SCRIPT_COPY,
   WEBVIEW_SCRIPT_FOLDING,
+  WEBVIEW_SCRIPT_NAVIGATION,
   WEBVIEW_SCRIPT_SHARED,
   WEBVIEW_SCRIPT_SOURCE_RENDERING,
-  WEBVIEW_SCRIPT_SYNC,
-} from './webviewScriptSections';
+  WEBVIEW_SCRIPT_STICKY,
+} from './webviewScripts';
 
 export interface BuildPreviewWebviewScriptArgs {
   sourceLineCount: number;
@@ -32,6 +35,9 @@ export function buildPreviewWebviewScript(args: BuildPreviewWebviewScriptArgs): 
 ${WEBVIEW_SCRIPT_SHARED}
 ${WEBVIEW_SCRIPT_FOLDING}
 ${WEBVIEW_SCRIPT_SOURCE_RENDERING}
-${WEBVIEW_SCRIPT_SYNC}
+${WEBVIEW_SCRIPT_NAVIGATION}
+${WEBVIEW_SCRIPT_STICKY}
+${WEBVIEW_SCRIPT_COPY}
+${WEBVIEW_SCRIPT_BOOTSTRAP}
     `;
 }
