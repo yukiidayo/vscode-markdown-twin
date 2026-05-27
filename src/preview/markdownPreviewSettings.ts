@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-export function getPreviewBodyClasses(): string[] {
+export function getMarkdownPreviewBodyClasses(): string[] {
   const classes = ['vscode-body'];
   const previewConfig = vscode.workspace.getConfiguration('markdown.preview');
 
@@ -17,7 +17,7 @@ export function getPreviewBodyClasses(): string[] {
   return classes;
 }
 
-export function getMarkdownStyleVars(): Record<string, string> {
+export function getMarkdownPreviewStyleVars(): Record<string, string> {
   const previewConfig = vscode.workspace.getConfiguration('markdown.preview');
   const vars: Record<string, string> = {};
 

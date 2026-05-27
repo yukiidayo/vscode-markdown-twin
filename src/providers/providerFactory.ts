@@ -1,11 +1,11 @@
-import { ApiKeyManager } from './apiKeyManager';
-import { DeeplProvider } from './providers/deeplProvider';
-import { GoogleCloudProvider } from './providers/googleCloudProvider';
-import { ITranslationProvider, ProviderId } from './providers/ITranslationProvider';
-import { MicrosoftProvider } from './providers/microsoftProvider';
-import { PapagoProvider } from './providers/papagoProvider';
+import { ApiKeyManager } from '../apiKeyManager';
+import { DeeplProvider } from './deeplProvider';
+import { GoogleCloudProvider } from './googleCloudProvider';
+import type { ITranslationProvider, ProviderId } from './ITranslationProvider';
+import { MicrosoftProvider } from './microsoftProvider';
+import { PapagoProvider } from './papagoProvider';
 
-export async function buildTranslationProvider(
+export async function createTranslationProvider(
   id: ProviderId,
   apiKeyManager: ApiKeyManager
 ): Promise<ITranslationProvider | null> {

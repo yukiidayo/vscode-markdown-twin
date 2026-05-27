@@ -5,11 +5,11 @@ import { getTargetLanguageCode } from './languages';
 import { t } from './i18n';
 import { isCursor } from './utils';
 import { createMarkdownPreviewEngine } from './preview/markdownEngine';
-import { createLocalResourceRoots, createNonce, resolveMarkdownResourceUri } from './preview/previewResources';
-import { getMarkdownStyleVars, getPreviewBodyClasses, shouldScrollEditorWithPreview, shouldScrollPreviewWithEditor } from './preview/previewSettings';
+import { createLocalResourceRoots, createWebviewNonce, resolveMarkdownResourceUri } from './preview/webviewResources';
+import { getMarkdownPreviewBodyClasses, getMarkdownPreviewStyleVars, shouldScrollEditorWithPreview, shouldScrollPreviewWithEditor } from './preview/markdownPreviewSettings';
 import { buildPreviewWebviewHtml } from './preview/webviewHtml';
 import { MarkdownSourceHighlighter } from './preview/sourceHighlighter';
-import { emptySourceView, renderSourceView } from './preview/sourceView';
+import { buildSourceViewModel, emptySourceViewModel } from './preview/sourceViewModel';
 import { runTranslationForDocument } from './translationRunner';
 import type { TranslatedMarkdownResult } from './translatedMarkdownBuilder';
 
@@ -29,7 +29,7 @@ export class PreviewPanel {
   private _editor: vscode.TextEditor;
   private _isInitialized = false;
   private _isDisposed = false;
-  private readonly _scriptNonce = createNonce();
+  private readonly _scriptNonce = createWebviewNonce();
   public readonly langCode: string;
   private _viewMode: 'preview' | 'source' = 'preview';
   private _sourceHighlighter = new MarkdownSourceHighlighter();
@@ -317,10 +317,10 @@ export class PreviewPanel {
     const shouldRenderSource = this._viewMode === 'source';
     const renderedHtml = shouldRenderPreview ? this.renderPreviewHtml(translated) : undefined;
     const sourceView = shouldRenderSource
-      ? await renderSourceView(translated, this._sourceHighlighter, (message, err) => {
+      ? await buildSourceViewModel(translated, this._sourceHighlighter, (message, err) => {
         this.translationManager.logError(message, err, false);
       })
-      : emptySourceView(translated);
+      : emptySourceViewModel(translated);
 
     if (!this._isInitialized) {
       const twinCssUri = webview.asWebviewUri(
@@ -341,8 +341,8 @@ export class PreviewPanel {
         sourceHighlightError: sourceView.sourceHighlightError,
         markdownCssUri,
         twinCssUri,
-        bodyClasses: getPreviewBodyClasses(),
-        htmlStyleVars: getMarkdownStyleVars(),
+        bodyClasses: getMarkdownPreviewBodyClasses(),
+        htmlStyleVars: getMarkdownPreviewStyleVars(),
         cspSource: webview.cspSource,
         scriptNonce: this._scriptNonce,
         viewMode: this._viewMode

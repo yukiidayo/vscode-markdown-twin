@@ -4,7 +4,7 @@ import type { MarkdownSourceHighlighter } from './sourceHighlighter';
 
 const SOURCE_LINE_HEIGHT = 19;
 
-export interface SourceView {
+export interface SourceViewModel {
   highlightedSource: string;
   sourceText: string;
   sourceLineCount: number;
@@ -13,11 +13,11 @@ export interface SourceView {
   sourceHighlightError?: string;
 }
 
-export async function renderSourceView(
+export async function buildSourceViewModel(
   translated: TranslatedMarkdownResult,
   sourceHighlighter: MarkdownSourceHighlighter,
   logHighlightError: (message: string, err: unknown) => void
-): Promise<SourceView> {
+): Promise<SourceViewModel> {
   const sourceMarkdown = translated.text;
   let highlightedSource = escapeHtml(sourceMarkdown);
   let sourceHighlightError: string | undefined;
@@ -40,7 +40,7 @@ export async function renderSourceView(
   };
 }
 
-export function emptySourceView(translated: TranslatedMarkdownResult): SourceView {
+export function emptySourceViewModel(translated: TranslatedMarkdownResult): SourceViewModel {
   return {
     highlightedSource: '',
     sourceText: translated.text,
