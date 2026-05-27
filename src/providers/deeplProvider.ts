@@ -1,5 +1,6 @@
 import { ITranslationProvider } from './ITranslationProvider';
 import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
+import { mapDeepLSourceLanguageCode, mapDeepLTargetLanguageCode } from './languageCodeMapper';
 
 export class DeeplProvider implements ITranslationProvider {
   readonly id = 'deepl';
@@ -23,8 +24,8 @@ export class DeeplProvider implements ITranslationProvider {
       },
       body: JSON.stringify({
         text: texts,
-        source_lang: sourceLang === 'auto' ? undefined : sourceLang.toUpperCase(),
-        target_lang: targetLang.toUpperCase(),
+        source_lang: mapDeepLSourceLanguageCode(sourceLang),
+        target_lang: mapDeepLTargetLanguageCode(targetLang),
         tag_handling: 'off',
       }),
     });

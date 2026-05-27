@@ -1,5 +1,6 @@
 import { ITranslationProvider } from './ITranslationProvider';
 import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
+import { mapLanguageCodeForProvider } from './languageCodeMapper';
 
 export class PapagoProvider implements ITranslationProvider {
   readonly id = 'papago';
@@ -34,8 +35,8 @@ export class PapagoProvider implements ITranslationProvider {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        source: sourceLang === 'auto' ? 'ja' : sourceLang,
-        target: targetLang,
+        source: mapLanguageCodeForProvider(this.id, sourceLang),
+        target: mapLanguageCodeForProvider(this.id, targetLang),
         text,
       }),
     });

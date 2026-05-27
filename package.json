@@ -146,6 +146,22 @@
         }
       },
       {
+        "command": "markdownTwin.toggleTranslation.zh-Hans",
+        "title": "%markdownTwin.commands.toggleTranslation%",
+        "icon": {
+          "light": "./media/flags/zh-Hans.svg",
+          "dark": "./media/flags/zh-Hans.svg"
+        }
+      },
+      {
+        "command": "markdownTwin.toggleTranslation.zh-Hant",
+        "title": "%markdownTwin.commands.toggleTranslation%",
+        "icon": {
+          "light": "./media/flags/zh-Hant.svg",
+          "dark": "./media/flags/zh-Hant.svg"
+        }
+      },
+      {
         "command": "markdownTwin.toggleBilingual",
         "title": "%markdownTwin.commands.toggleBilingual%",
         "icon": "$(split-horizontal)"
@@ -265,6 +281,16 @@
           "group": "navigation@1"
         },
         {
+          "command": "markdownTwin.toggleTranslation.zh-Hans",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'zh-Hans'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.zh-Hant",
+          "when": "resourceLangId == markdown && markdownTwin.targetLang == 'zh-Hant'",
+          "group": "navigation@1"
+        },
+        {
           "command": "markdownTwin.copyTranslatedMarkdown",
           "when": "activeWebviewPanelId == 'markdownTwinPreview'",
           "group": "navigation@2"
@@ -330,6 +356,8 @@
             "ja",
             "en",
             "ko",
+            "zh-Hans",
+            "zh-Hant",
             "es",
             "fr",
             "de",
@@ -350,6 +378,8 @@
             "Japanese (日本語)",
             "English (English)",
             "Korean (한국어)",
+            "Simplified Chinese (简体中文)",
+            "Traditional Chinese (繁體中文)",
             "Spanish (Español)",
             "French (Français)",
             "German (Deutsch)",
@@ -367,6 +397,8 @@
           "type": "string",
           "enum": [
             "ko",
+            "zh-Hans",
+            "zh-Hant",
             "en",
             "ja",
             "es",
@@ -386,6 +418,8 @@
           "order": 4,
           "enumItemLabels": [
             "Korean (한국어)",
+            "Simplified Chinese (简体中文)",
+            "Traditional Chinese (繁體中文)",
             "English (English)",
             "Japanese (日本語)",
             "Spanish (Español)",

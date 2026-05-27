@@ -8,6 +8,8 @@ const LANG_TO_REGEX: Record<string, RegExp> = {
   ja: /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/,
   en: /[A-Za-z]/,
   ko: /[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/,
+  'zh-Hans': /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/,
+  'zh-Hant': /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/,
   es: /[A-Za-z\u00c0-\u00ff]/,
   fr: /[A-Za-z\u00c0-\u00ff]/,
   de: /[A-Za-z\u00c0-\u00ff]/,

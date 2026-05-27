@@ -1,5 +1,6 @@
 import { ITranslationProvider } from './ITranslationProvider';
 import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
+import { mapLanguageCodeForProvider } from './languageCodeMapper';
 
 export class GoogleCloudProvider implements ITranslationProvider {
   readonly id = 'google-cloud';
@@ -15,12 +16,12 @@ export class GoogleCloudProvider implements ITranslationProvider {
 
     const requestBody: any = {
       q: texts,
-      target: targetLang,
+      target: mapLanguageCodeForProvider(this.id, targetLang),
       format: 'text',
     };
 
     if (sourceLang !== 'auto') {
-      requestBody.source = sourceLang;
+      requestBody.source = mapLanguageCodeForProvider(this.id, sourceLang);
     }
 
     const response = await fetch(url, {

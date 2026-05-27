@@ -1,6 +1,7 @@
 import { ITranslationProvider } from './ITranslationProvider';
 import * as vscode from 'vscode';
 import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
+import { mapLanguageCodeForProvider } from './languageCodeMapper';
 
 export class AzureRegionError extends Error {
   readonly region: string;
@@ -23,10 +24,10 @@ export class MicrosoftProvider implements ITranslationProvider {
 
     const params = new URLSearchParams({
       'api-version': '3.0',
-      to: targetLang,
+      to: mapLanguageCodeForProvider(this.id, targetLang),
     });
     if (sourceLang !== 'auto') {
-      params.set('from', sourceLang);
+      params.set('from', mapLanguageCodeForProvider(this.id, sourceLang));
     }
 
     const config = vscode.workspace.getConfiguration('markdownTwin');

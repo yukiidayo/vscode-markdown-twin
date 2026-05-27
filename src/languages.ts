@@ -14,6 +14,8 @@ export const TARGET_LANGUAGES: Language[] = [
   { code: 'ja', label: 'Japanese (日本語)', displayCode: 'JA' },
   { code: 'en', label: 'English (English)', displayCode: 'EN' },
   { code: 'ko', label: 'Korean (한국어)', displayCode: 'KO' },
+  { code: 'zh-Hans', label: 'Simplified Chinese (简体中文)', displayCode: 'ZH-CN' },
+  { code: 'zh-Hant', label: 'Traditional Chinese (繁體中文)', displayCode: 'ZH-TW' },
   { code: 'es', label: 'Spanish (Español)', displayCode: 'ES' },
   { code: 'fr', label: 'French (Français)', displayCode: 'FR' },
   { code: 'de', label: 'German (Deutsch)', displayCode: 'DE' },
@@ -34,6 +36,15 @@ export const LEGACY_PREFIX_TO_CODE: Record<string, string> = {
   japanese: 'ja',
   english: 'en',
   korean: 'ko',
+  chinese: 'zh-Hans',
+  'simplified chinese': 'zh-Hans',
+  'chinese simplified': 'zh-Hans',
+  'traditional chinese': 'zh-Hant',
+  'chinese traditional': 'zh-Hant',
+  'zh-cn': 'zh-Hans',
+  'zh-hans': 'zh-Hans',
+  'zh-tw': 'zh-Hant',
+  'zh-hant': 'zh-Hant',
   spanish: 'es',
   french: 'fr',
   german: 'de',
@@ -58,7 +69,9 @@ function findLanguage(value: string): Language | undefined {
 
 function resolveLegacyLanguageCode(value: string): string | undefined {
   const lower = value.trim().toLowerCase();
-  const matchedPrefix = Object.keys(LEGACY_PREFIX_TO_CODE).find(prefix => lower.startsWith(prefix));
+  const matchedPrefix = Object.keys(LEGACY_PREFIX_TO_CODE)
+    .sort((a, b) => b.length - a.length)
+    .find(prefix => lower.startsWith(prefix));
   return matchedPrefix ? LEGACY_PREFIX_TO_CODE[matchedPrefix] : undefined;
 }
 
