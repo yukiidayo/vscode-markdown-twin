@@ -55,6 +55,13 @@ export const commands = {
   executeCommand: jest.fn(),
 };
 
+export const env = {
+  language: 'en',
+  clipboard: {
+    writeText: jest.fn(),
+  },
+};
+
 export class Disposable {
   static from(..._disposables: { dispose(): any }[]): Disposable {
     return new Disposable();
