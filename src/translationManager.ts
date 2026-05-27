@@ -2,15 +2,11 @@ import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
 import {
   ITranslationProvider,
-  ProviderId,
   PROVIDER_DISPLAY_NAMES,
   normalizeProviderId,
   providerRequiresApiKey,
 } from './providers/ITranslationProvider';
-import { DeeplProvider } from './providers/deeplProvider';
-import { PapagoProvider } from './providers/papagoProvider';
-import { GoogleCloudProvider } from './providers/googleCloudProvider';
-import { MicrosoftProvider, AzureRegionError } from './providers/microsoftProvider';
+import { AzureRegionError } from './providers/microsoftProvider';
 import { TooManyRequestsError } from './providers/httpError';
 import { ApiKeyManager } from './apiKeyManager';
 import { StatusBar } from './statusBar';
@@ -19,10 +15,9 @@ import { resolveSourceLanguageCode, normalizeTargetLanguageCode } from './langua
 import { t } from './i18n';
 import { PreviewPanel } from './previewPanel';
 import { buildTranslatedMarkdown, type TranslatedMarkdownResult, type TranslationViewMode } from './translatedMarkdownBuilder';
+import { buildTranslationProvider } from './providerFactory';
 
 export class TranslationManager implements vscode.Disposable {
-  // 翻訳キャッシュ構造:
-  // Map<`${uri}@${lang}`, Map<原文, 訳文>>
   private cache = new Map<string, Map<string, string>>();
   private translationActive = false;
   private translatingNow = false;
@@ -132,7 +127,6 @@ export class TranslationManager implements vscode.Disposable {
     const batchSize = config.get<number>('batchSize') ?? 10;
 
     const docUriStr = document.uri.toString();
-    // 同一ドキュメントで開いている全言語パネルを翻訳対象に含める
     const panelsForDoc = Array.from(PreviewPanel.allPanels.values()).filter(
       p => p.editorDocumentUri.toString() === docUriStr
     );
@@ -148,7 +142,7 @@ export class TranslationManager implements vscode.Disposable {
       }
     }
 
-    const provider = await this.buildProvider(providerId);
+    const provider = await buildTranslationProvider(providerId, this.apiKeyManager);
     if (!provider || this.currentTranslationSessionId !== sessionId) {
       this.statusBar?.showError();
       return;
@@ -212,7 +206,6 @@ export class TranslationManager implements vscode.Disposable {
       }
       const docCache = this.cache.get(uriKey)!;
 
-      // 不要になったキャッシュ項目をGCし、メモリ増加を抑える
       for (const cachedText of docCache.keys()) {
         if (!currentTexts.has(cachedText)) docCache.delete(cachedText);
       }
@@ -262,7 +255,6 @@ export class TranslationManager implements vscode.Disposable {
             }
           } catch (err: any) {
             if (err instanceof AzureRegionError) {
-              // リージョン設定不備は復旧操作が必要なので致命扱いにする
               const timestamp = new Date().toLocaleTimeString();
               this.outputChannel.appendLine(`[${timestamp}] [ERROR] ${err.message}`);
               fatalError = true;
@@ -275,14 +267,12 @@ export class TranslationManager implements vscode.Disposable {
                 void vscode.commands.executeCommand('workbench.action.openSettings', 'markdownTwin.azureRegion');
               }
             } else if (err instanceof TooManyRequestsError) {
-              // レート制限は一時エラーとして警告し、該当バッチは原文でフォールバックする
               this.logWarning(t('rateLimitReached'));
               this.statusBar?.showError();
               for (const text of batch) {
                 docCache.set(text, text);
               }
             } else {
-              // その他エラーは該当バッチのみ原文フォールバックする
               this.logError(t('translationFailed', providerName, targetLang), err);
               for (const text of batch) {
                 docCache.set(text, text);
@@ -318,7 +308,6 @@ export class TranslationManager implements vscode.Disposable {
         clearTimeout(existing);
       }
 
-      // 入力停止後に同一URIだけ再翻訳し、API連打を抑える
       const delay = (vscode.workspace.getConfiguration('markdownTwin').get<number>('debounceDelay') ?? 2) * 1000;
       const timer = setTimeout(() => {
         this.debounceTimers.delete(uriStr);
@@ -391,23 +380,4 @@ export class TranslationManager implements vscode.Disposable {
     });
   }
 
-  private async buildProvider(id: ProviderId): Promise<ITranslationProvider | null> {
-    const getKey = async (providerId: ProviderId) => {
-      const key = await this.apiKeyManager.getKey(providerId);
-      return key ?? '';
-    };
-
-    switch (id) {
-      case 'deepl':
-        return new DeeplProvider(await getKey('deepl'));
-      case 'papago':
-        return new PapagoProvider(await getKey('papago'));
-      case 'microsoft':
-        return new MicrosoftProvider(await getKey('microsoft'));
-      case 'google-cloud':
-        return new GoogleCloudProvider(await getKey('google-cloud'));
-      default:
-        return null;
-    }
-  }
 }

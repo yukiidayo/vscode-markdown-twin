@@ -5,120 +5,17 @@ import { getTargetLanguageCode } from './languages';
 import { t } from './i18n';
 import { isCursor } from './utils';
 import { createMarkdownPreviewEngine } from './preview/markdownEngine';
+import { createLocalResourceRoots, createNonce, resolveMarkdownResourceUri } from './preview/previewResources';
+import { getMarkdownStyleVars, getPreviewBodyClasses, shouldScrollEditorWithPreview, shouldScrollPreviewWithEditor } from './preview/previewSettings';
 import { buildPreviewWebviewHtml } from './preview/webviewHtml';
 import { MarkdownSourceHighlighter } from './preview/sourceHighlighter';
+import { emptySourceView, renderSourceView } from './preview/sourceView';
 import { runTranslationForDocument } from './translationRunner';
-import { escapeHtml } from './utils/html';
 import type { TranslatedMarkdownResult } from './translatedMarkdownBuilder';
-
-function createNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let out = '';
-  for (let i = 0; i < 32; i++) {
-    out += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return out;
-}
 
 function normalizeLineNumber(value: unknown): number {
   const line = Number(value);
   return Number.isFinite(line) && line >= 0 ? Math.floor(line) : 0;
-}
-
-function createLocalResourceRoots(extensionUri: vscode.Uri, document: vscode.TextDocument): vscode.Uri[] {
-  const roots = [vscode.Uri.file(path.join(extensionUri.fsPath, 'media'))];
-
-  if (document.uri.scheme === 'file') {
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
-    roots.push(workspaceFolder?.uri ?? vscode.Uri.file(path.dirname(document.uri.fsPath)));
-  }
-
-  return roots;
-}
-
-function resolveMarkdownResourceUri(
-  href: string,
-  document: vscode.TextDocument,
-  webview: vscode.Webview
-): string {
-  try {
-    if (/^[a-z-]+:/i.test(href)) {
-      return /^file:/i.test(href)
-        ? webview.asWebviewUri(vscode.Uri.parse(href)).toString(true)
-        : href;
-    }
-
-    if (document.uri.scheme !== 'file') {
-      return href;
-    }
-
-    const match = /^([^?#]*)(\?[^#]*)?(#.*)?$/.exec(href);
-    const resourcePath = decodeURIComponent(match?.[1] ?? href).replace(/\\/g, '/');
-    const query = match?.[2]?.slice(1) ?? '';
-    const fragment = match?.[3]?.slice(1) ?? '';
-
-    const uri = resourcePath.startsWith('/')
-      ? resolveWorkspaceAbsoluteResource(resourcePath, document) ?? vscode.Uri.file(resourcePath)
-      : vscode.Uri.joinPath(vscode.Uri.file(path.dirname(document.uri.fsPath)), resourcePath);
-
-    return webview.asWebviewUri(uri.with({ query, fragment })).toString(true);
-  } catch {
-    return href;
-  }
-}
-
-function resolveWorkspaceAbsoluteResource(resourcePath: string, document: vscode.TextDocument): vscode.Uri | undefined {
-  const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
-  return workspaceFolder
-    ? vscode.Uri.joinPath(workspaceFolder.uri, resourcePath)
-    : undefined;
-}
-
-function getPreviewBodyClasses(): string[] {
-  const classes = ['vscode-body'];
-  const previewConfig = vscode.workspace.getConfiguration('markdown.preview');
-
-  if (previewConfig.get<boolean>('markEditorSelection', true)) {
-    classes.push('showEditorSelection');
-  }
-  if (previewConfig.get<boolean>('scrollBeyondLastLine', true)) {
-    classes.push('scrollBeyondLastLine');
-  }
-  if (previewConfig.get<boolean>('wordWrap', true)) {
-    classes.push('wordWrap');
-  }
-
-  return classes;
-}
-
-function getMarkdownStyleVars(): Record<string, string> {
-  const previewConfig = vscode.workspace.getConfiguration('markdown.preview');
-  const vars: Record<string, string> = {};
-
-  const fontFamily = previewConfig.get<string>('fontFamily');
-  if (fontFamily) {
-    vars['--markdown-font-family'] = fontFamily;
-  }
-
-  const fontSize = previewConfig.get<number>('fontSize');
-  if (typeof fontSize === 'number' && fontSize > 0) {
-    vars['--markdown-font-size'] = `${fontSize}px`;
-  }
-
-  const lineHeight = previewConfig.get<number>('lineHeight');
-  if (typeof lineHeight === 'number' && lineHeight > 0) {
-    vars['--markdown-line-height'] = String(lineHeight);
-  }
-
-  return vars;
-}
-
-function shouldScrollPreviewWithEditor(): boolean {
-  return vscode.workspace.getConfiguration('markdown.preview').get<boolean>('scrollPreviewWithEditor', true);
-}
-
-function shouldScrollEditorWithPreview(): boolean {
-  return vscode.workspace.getConfiguration('markdown.preview').get<boolean>('scrollEditorWithPreview', true);
 }
 
 export class PreviewPanel {
@@ -227,7 +124,6 @@ export class PreviewPanel {
     const column = activeEditor.viewColumn;
     const targetColumn = column ? column + 1 : vscode.ViewColumn.Two;
 
-    // `${documentUri}@${langCode}` をキーとしてパネルを一意に管理する。
     const existing = PreviewPanel.allPanels.get(panelKey);
     if (existing) {
       PreviewPanel.currentPanel = existing;
@@ -238,7 +134,6 @@ export class PreviewPanel {
       return true;
     }
 
-    // 既定ではエディタの右隣にプレビューを開く。
     const panel = vscode.window.createWebviewPanel(
       PreviewPanel.viewType,
       t('previewTitle', path.basename(activeEditor.document.fileName)),
@@ -280,7 +175,6 @@ export class PreviewPanel {
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
-    // パネルが再びアクティブになったら表示内容を再同期する。
     this._panel.onDidChangeViewState(
       () => {
         if (this._panel.active) {
@@ -299,7 +193,6 @@ export class PreviewPanel {
 
     this._panel.webview.onDidReceiveMessage(
       message => {
-        // メッセージ連携: Webview -> 拡張
         if (message.command === 'scroll') {
           if (!shouldScrollEditorWithPreview()) {
             return;
@@ -316,7 +209,6 @@ export class PreviewPanel {
 
     vscode.workspace.onDidChangeTextDocument(
       e => {
-        // 現在パネルと同じドキュメント変更のみ反映する。
         if (e.document.uri.toString() === this._editor.document.uri.toString()) {
           if (this._isSameDocAsActive) {
             this._update();
@@ -329,7 +221,6 @@ export class PreviewPanel {
 
     vscode.workspace.onDidChangeConfiguration(
       e => {
-        // Markdownプレビュー設定やテーマ変更時は再描画する。
         if (e.affectsConfiguration('markdown.preview') && this._isSameDocAsActive) {
           this._isInitialized = false;
           this._update();
@@ -343,7 +234,6 @@ export class PreviewPanel {
 
     vscode.window.onDidChangeTextEditorVisibleRanges(
       e => {
-        // スクロール連携: エディタ -> Webview
         if (this._isEditorForDocument(e.textEditor) && e.visibleRanges.length > 0) {
           if (!shouldScrollPreviewWithEditor()) {
             return;
@@ -364,7 +254,6 @@ export class PreviewPanel {
 
     this._disposables.push(
       this.translationManager.onTranslationUpdated((updatedUri) => {
-        // 全体更新または同一URI更新のときだけ再描画する。
         const docUriStr = this._editor.document.uri.toString();
         if (!updatedUri || updatedUri.toString() === docUriStr) {
           this._update();
@@ -420,55 +309,6 @@ export class PreviewPanel {
     return this.createPreviewMarkdownEngine(translated).render(translated.text);
   }
 
-  private async renderSourceView(translated: TranslatedMarkdownResult): Promise<{
-    highlightedSource: string;
-    sourceText: string;
-    sourceLineCount: number;
-    sourceLineOrigins: number[];
-    sourceLineHeight: number;
-    sourceHighlightError?: string;
-  }> {
-    const sourceMarkdown = translated.text;
-    let highlightedSource = escapeHtml(sourceMarkdown);
-    let sourceHighlightError: string | undefined;
-    const sourceLineCount = sourceMarkdown.split(/\r?\n/).length;
-    const sourceLineHeight = 19;
-
-    try {
-      highlightedSource = await this._sourceHighlighter.highlight(sourceMarkdown);
-    } catch (err: any) {
-      const reason = err?.message ?? String(err);
-      sourceHighlightError = `Source highlight failed: ${reason}`;
-      this.translationManager.logError(`Source highlight failed: ${reason}`, err, false);
-    }
-
-    return {
-      highlightedSource,
-      sourceText: sourceMarkdown,
-      sourceLineCount,
-      sourceLineOrigins: translated.lineOrigins,
-      sourceLineHeight,
-      sourceHighlightError,
-    };
-  }
-
-  private emptySourceView(translated: TranslatedMarkdownResult): {
-    highlightedSource: string;
-    sourceText: string;
-    sourceLineCount: number;
-    sourceLineOrigins: number[];
-    sourceLineHeight: number;
-    sourceHighlightError?: string;
-  } {
-    return {
-      highlightedSource: '',
-      sourceText: translated.text,
-      sourceLineCount: translated.text.split(/\r?\n/).length,
-      sourceLineOrigins: translated.lineOrigins,
-      sourceLineHeight: 19,
-    };
-  }
-
   private async _update() {
     const webview = this._panel.webview;
     const document = this._editor.document;
@@ -477,8 +317,10 @@ export class PreviewPanel {
     const shouldRenderSource = this._viewMode === 'source';
     const renderedHtml = shouldRenderPreview ? this.renderPreviewHtml(translated) : undefined;
     const sourceView = shouldRenderSource
-      ? await this.renderSourceView(translated)
-      : this.emptySourceView(translated);
+      ? await renderSourceView(translated, this._sourceHighlighter, (message, err) => {
+        this.translationManager.logError(message, err, false);
+      })
+      : emptySourceView(translated);
 
     if (!this._isInitialized) {
       const twinCssUri = webview.asWebviewUri(
