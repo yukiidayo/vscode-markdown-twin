@@ -31,8 +31,6 @@ export async function retranslatePreviewDocument(args: RetranslatePreviewArgs): 
   const { extensionUri, translationManager, document, options } = args;
   if (!document) return false;
 
-  await vscode.commands.executeCommand('setContext', 'markdownTwin.translationActive', true);
-
   if (options?.revealPreview) {
     if (!extensionUri) return false;
 

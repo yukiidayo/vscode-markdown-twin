@@ -4,6 +4,7 @@ import type { ProviderId } from './providers/ITranslationProvider';
 
 export interface RunTranslationOptions {
   clearCache?: boolean;
+  clearAllCache?: boolean;
   overrideProvider?: ProviderId;
 }
 
@@ -14,10 +15,13 @@ export async function runTranslationForDocument(
 ): Promise<boolean> {
   if (!document) return false;
 
-  if (options?.clearCache) {
+  if (options?.clearAllCache) {
     translationManager.clearAllCache();
+  } else if (options?.clearCache) {
+    translationManager.clearDocumentCache(document.uri);
   }
 
-  await translationManager.startTranslation(document, options?.overrideProvider);
-  return true;
+  const success = await translationManager.startTranslation(document, options?.overrideProvider);
+  await vscode.commands.executeCommand('setContext', 'markdownTwin.translationActive', success);
+  return success;
 }

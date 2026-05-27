@@ -222,7 +222,7 @@ export class ProviderSelector {
 
     if (this.translationManager.isActive()) {
       await retranslateActivePreview(this.translationManager, {
-        clearCache: true,
+        clearAllCache: true,
         overrideProvider: selected.id,
       });
     } else {

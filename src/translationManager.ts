@@ -21,7 +21,6 @@ import { TranslationCache } from './translationCache';
 export class TranslationManager implements vscode.Disposable {
   private cache = new TranslationCache();
   private translationActive = false;
-  private translatingNow = false;
   private currentMode: TranslationViewMode = 'translation-only';
   private statusBar: StatusBar | null = null;
   private md = new MarkdownIt();
@@ -74,10 +73,6 @@ export class TranslationManager implements vscode.Disposable {
     return this.translationActive;
   }
 
-  isTranslating(): boolean {
-    return this.translatingNow;
-  }
-
   getMode(): TranslationViewMode {
     return this.currentMode;
   }
@@ -110,9 +105,8 @@ export class TranslationManager implements vscode.Disposable {
     return joinTranslatedParts(parts, translationSlice);
   }
 
-  async startTranslation(document: vscode.TextDocument, overrideProvider?: string): Promise<void> {
+  async startTranslation(document: vscode.TextDocument, overrideProvider?: string): Promise<boolean> {
     const sessionId = ++this.currentTranslationSessionId;
-    this.translationActive = true;
 
     const config = vscode.workspace.getConfiguration('markdownTwin');
     const providerId = normalizeProviderId(overrideProvider ?? config.get<string>('provider'));
@@ -135,16 +129,20 @@ export class TranslationManager implements vscode.Disposable {
         const displayName = PROVIDER_DISPLAY_NAMES[providerId] ?? providerId;
         this.logError(t('apiKeyNotSetForProvider', displayName), undefined, false);
         this.statusBar?.showError();
-        return;
+        return this.failStartTranslation(sessionId);
       }
     }
 
     const provider = await createTranslationProvider(providerId, this.apiKeyManager);
-    if (!provider || this.currentTranslationSessionId !== sessionId) {
+    if (!provider) {
       this.statusBar?.showError();
-      return;
+      return this.failStartTranslation(sessionId);
+    }
+    if (this.currentTranslationSessionId !== sessionId) {
+      return false;
     }
 
+    this.translationActive = true;
     const currentTexts = this.extractTranslatableTexts(document, sourceLang);
     const { langToTranslateMap, totalCount } = this.cache.preparePendingTranslations(
       document.uri, targetLangs, currentTexts
@@ -153,10 +151,10 @@ export class TranslationManager implements vscode.Disposable {
     if (totalCount === 0) {
       this.statusBar?.showComplete(this.currentMode);
       this.onTranslationUpdatedEmitter.fire(document.uri);
-      return;
+      return true;
     }
 
-    await this.executeTranslationLoop(
+    return this.executeTranslationLoop(
       sessionId,
       provider,
       PROVIDER_DISPLAY_NAMES[providerId] ?? providerId,
@@ -167,6 +165,15 @@ export class TranslationManager implements vscode.Disposable {
       totalCount,
       batchSize
     );
+  }
+
+  private failStartTranslation(sessionId: number): false {
+    if (this.currentTranslationSessionId === sessionId) {
+      this.translationActive = false;
+      this.statusBar?.setActiveProvider(null);
+      this.onTranslationUpdatedEmitter.fire(undefined);
+    }
+    return false;
   }
 
   private extractTranslatableTexts(document: vscode.TextDocument, sourceLang: string): Set<string> {
@@ -197,73 +204,72 @@ export class TranslationManager implements vscode.Disposable {
     langToTranslateMap: Map<string, string[]>,
     totalCount: number,
     batchSize: number
-  ): Promise<void> {
-    this.translatingNow = true;
+  ): Promise<boolean> {
     let accumulatedDone = 0;
     let fatalError = false;
     this.statusBar?.showProgress(accumulatedDone, totalCount);
     this.onTranslationUpdatedEmitter.fire(documentUri);
 
-    try {
-      for (const targetLang of targetLangs) {
+    for (const targetLang of targetLangs) {
+      if (fatalError || !this.translationActive || this.currentTranslationSessionId !== sessionId) break;
+      const textsToTranslate = langToTranslateMap.get(targetLang) ?? [];
+      if (textsToTranslate.length === 0) continue;
+
+      const docCache = this.cache.ensureDocumentCache(documentUri, targetLang);
+
+      for (let i = 0; i < textsToTranslate.length; i += batchSize) {
         if (fatalError || !this.translationActive || this.currentTranslationSessionId !== sessionId) break;
-        const textsToTranslate = langToTranslateMap.get(targetLang) ?? [];
-        if (textsToTranslate.length === 0) continue;
+        const batch = textsToTranslate.slice(i, i + batchSize);
 
-        const docCache = this.cache.ensureDocumentCache(documentUri, targetLang);
-
-        for (let i = 0; i < textsToTranslate.length; i += batchSize) {
-          if (fatalError || !this.translationActive || this.currentTranslationSessionId !== sessionId) break;
-          const batch = textsToTranslate.slice(i, i + batchSize);
-
-          try {
-            const translated = await provider.translate(batch, sourceLang, targetLang);
-            for (let k = 0; k < batch.length; k++) {
-              docCache.set(batch[k], translated[k] ?? batch[k]);
+        try {
+          const translated = await provider.translate(batch, sourceLang, targetLang);
+          for (let k = 0; k < batch.length; k++) {
+            docCache.set(batch[k], translated[k] ?? batch[k]);
+          }
+        } catch (err: any) {
+          if (err instanceof AzureRegionError) {
+            const timestamp = new Date().toLocaleTimeString();
+            this.outputChannel.appendLine(`[${timestamp}] [ERROR] ${err.message}`);
+            fatalError = true;
+            this.statusBar?.showError();
+            const action = await vscode.window.showErrorMessage(
+              t('azureRegionError', err.region ?? 'unknown'),
+              t('openSettings')
+            );
+            if (action === t('openSettings')) {
+              void vscode.commands.executeCommand('workbench.action.openSettings', 'markdownTwin.azureRegion');
             }
-          } catch (err: any) {
-            if (err instanceof AzureRegionError) {
-              const timestamp = new Date().toLocaleTimeString();
-              this.outputChannel.appendLine(`[${timestamp}] [ERROR] ${err.message}`);
-              fatalError = true;
-              this.statusBar?.showError();
-              const action = await vscode.window.showErrorMessage(
-                t('azureRegionError', err.region ?? 'unknown'),
-                t('openSettings')
-              );
-              if (action === t('openSettings')) {
-                void vscode.commands.executeCommand('workbench.action.openSettings', 'markdownTwin.azureRegion');
-              }
-            } else if (err instanceof TooManyRequestsError) {
-              this.logWarning(t('rateLimitReached'));
-              this.statusBar?.showError();
-              for (const text of batch) {
-                docCache.set(text, text);
-              }
-            } else {
-              this.logError(t('translationFailed', providerName, targetLang), err);
-              for (const text of batch) {
-                docCache.set(text, text);
-              }
+          } else if (err instanceof TooManyRequestsError) {
+            this.logWarning(t('rateLimitReached'));
+            this.statusBar?.showError();
+            for (const text of batch) {
+              docCache.set(text, text);
+            }
+          } else {
+            this.logError(t('translationFailed', providerName, targetLang), err);
+            for (const text of batch) {
+              docCache.set(text, text);
             }
           }
-
-          if (fatalError || this.currentTranslationSessionId !== sessionId) break;
-
-          accumulatedDone += batch.length;
-          this.statusBar?.showProgress(accumulatedDone, totalCount);
-          this.onTranslationUpdatedEmitter.fire(documentUri);
         }
-      }
-    } finally {
-      if (this.currentTranslationSessionId === sessionId) {
-        this.translatingNow = false;
+
+        if (fatalError || this.currentTranslationSessionId !== sessionId) break;
+
+        accumulatedDone += batch.length;
+        this.statusBar?.showProgress(accumulatedDone, totalCount);
+        this.onTranslationUpdatedEmitter.fire(documentUri);
       }
     }
-
     if (!fatalError && this.translationActive && this.currentTranslationSessionId === sessionId) {
       this.statusBar?.showComplete(this.currentMode);
+      return true;
     }
+
+    if (fatalError && this.currentTranslationSessionId === sessionId) {
+      this.translationActive = false;
+    }
+
+    return false;
   }
 
   private debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -305,7 +311,6 @@ export class TranslationManager implements vscode.Disposable {
 
   stopTranslation(): void {
     this.translationActive = false;
-    this.translatingNow = false;
     this.debounceTimers.forEach(clearTimeout);
     this.debounceTimers.clear();
     this.cache.clear();
@@ -318,6 +323,11 @@ export class TranslationManager implements vscode.Disposable {
   clearAllCache(): void {
     this.cache.clear();
     this.onTranslationUpdatedEmitter.fire(undefined);
+  }
+
+  clearDocumentCache(uri: vscode.Uri): void {
+    this.cache.clearDocument(uri);
+    this.onTranslationUpdatedEmitter.fire(uri);
   }
 
   generateTranslatedMarkdown(document: vscode.TextDocument, langCode: string): TranslatedMarkdownResult {

@@ -154,7 +154,6 @@ function createToggleTranslationHandler(services: ExtensionServices): ToggleTran
       }
     }
 
-    await vscode.commands.executeCommand('setContext', 'markdownTwin.translationActive', true);
     const panelReady = await PreviewPanel.createOrShow(context.extensionUri, translationManager, document);
     if (!panelReady) return;
 
@@ -296,6 +295,10 @@ function registerEditorDocumentListeners(services: ExtensionServices): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidCloseTextDocument(doc => {
+      const hasPreviewPanel = Array.from(PreviewPanel.allPanels.values()).some(
+        panel => panel.editorDocumentUri.toString() === doc.uri.toString()
+      );
+      if (hasPreviewPanel) return;
       translationManager.closeDocument(doc.uri);
     })
   );

@@ -46,14 +46,6 @@ export class PreviewPanel {
     return this._editor.document;
   }
 
-  public get viewColumn(): vscode.ViewColumn | undefined {
-    return this._panel.viewColumn;
-  }
-
-  public get viewMode(): 'preview' | 'source' {
-    return this._viewMode;
-  }
-
   public static getActivePanel(): PreviewPanel | undefined {
     if (PreviewPanel.currentPanel?._panel.active) {
       return PreviewPanel.currentPanel;
@@ -151,12 +143,6 @@ export class PreviewPanel {
     PreviewPanel.currentPanel = newPanel;
     PreviewPanel.allPanels.set(panelKey, newPanel);
     return true;
-  }
-
-  public static updateFlagIcon(langCode: string): void {
-    if (!PreviewPanel.currentPanel) return;
-    const uri = PreviewPanel.currentPanel._extensionUri;
-    PreviewPanel.currentPanel._panel.iconPath = vscode.Uri.joinPath(uri, 'media', 'flags', `${langCode}.svg`);
   }
 
   private constructor(

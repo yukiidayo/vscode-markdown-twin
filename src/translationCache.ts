@@ -59,6 +59,10 @@ export class TranslationCache {
     return count;
   }
 
+  clearDocument(documentUri: vscode.Uri): void {
+    this.releaseDocument(documentUri);
+  }
+
   clear(): void {
     this.entries.clear();
   }
