@@ -9,12 +9,13 @@ export interface BuildPreviewWebviewScriptArgs {
   sourceLineCount: number;
   sourceLineOrigins: number[];
   sourceLineHeight: number;
+  initialScrollLine: number;
   sourceText: string;
   isSource: boolean;
 }
 
 export function buildPreviewWebviewScript(args: BuildPreviewWebviewScriptArgs): string {
-  const { sourceLineCount, sourceLineOrigins, sourceLineHeight, sourceText, isSource } = args;
+  const { sourceLineCount, sourceLineOrigins, sourceLineHeight, initialScrollLine, sourceText, isSource } = args;
 
   return `
         const vscode = acquireVsCodeApi();
@@ -23,6 +24,7 @@ export function buildPreviewWebviewScript(args: BuildPreviewWebviewScriptArgs): 
         const initialSourceLineCount = ${sourceLineCount};
         const initialSourceLineOrigins = ${JSON.stringify(sourceLineOrigins)};
         const initialSourceLineHeight = ${sourceLineHeight};
+        const initialScrollLine = ${initialScrollLine};
         const initialSourceText = ${JSON.stringify(sourceText)};
         const initialViewMode = '${isSource ? 'source' : 'preview'}';
         const collapsedFoldStarts = new Set();

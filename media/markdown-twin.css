@@ -17,18 +17,22 @@ body.mt-preview-mode #mt-topbar {
 }
 
 #source-shell {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   height: calc(100vh - 22px);
   background: var(--vscode-editor-background);
+  overflow: hidden;
 }
 
 #mt-source-sticky {
-  flex: 0 0 auto;
-  margin-right: 14px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 14px;
   overflow: hidden;
-  background: transparent;
+  background: var(--vscode-editorStickyScroll-background, var(--vscode-editor-background));
   border-bottom: 1px solid var(--vscode-editorStickyScroll-border, var(--vscode-panel-border, transparent));
   z-index: 18;
 }

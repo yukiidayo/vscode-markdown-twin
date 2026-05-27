@@ -11,6 +11,7 @@ describe('buildPreviewWebviewHtml', () => {
       sourceLineCount: 1,
       sourceLineOrigins: [0],
       sourceLineHeight: 19,
+      initialScrollLine: 0,
       markdownCssUri: Uri.parse('vscode-resource:/markdown.css') as any,
       twinCssUri: Uri.parse('vscode-resource:/markdown-twin.css') as any,
       bodyClasses: ['vscode-body', 'wordWrap', 'scrollBeyondLastLine', 'showEditorSelection'],

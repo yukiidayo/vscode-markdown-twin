@@ -377,19 +377,19 @@ export const WEBVIEW_SCRIPT_FOLDING = `
             const lineNumbers = Array.from(document.querySelectorAll('#line-numbers .line-number'));
 
             for (const lineEl of codeLines) {
-                const lineNumber = parseInt(lineEl.getAttribute('data-line') || '-1', 10);
-                const hidden = isLineHiddenByFold(lineNumber);
+                const sourceIndex = parseInt(lineEl.getAttribute('data-source-index') || '-1', 10);
+                const hidden = isLineHiddenByFold(sourceIndex);
                 lineEl.style.display = hidden ? 'none' : '';
 
-                const foldState = resolveFoldState(lineNumber);
+                const foldState = resolveFoldState(sourceIndex);
                 lineEl.dataset.foldState = foldState;
             }
 
             for (const numEl of lineNumbers) {
-                const lineNumber = parseInt(numEl.getAttribute('data-line') || '-1', 10);
-                const hidden = isLineHiddenByFold(lineNumber);
+                const sourceIndex = parseInt(numEl.getAttribute('data-source-index') || '-1', 10);
+                const hidden = isLineHiddenByFold(sourceIndex);
                 numEl.style.display = hidden ? 'none' : '';
-                const foldState = resolveFoldState(lineNumber);
+                const foldState = resolveFoldState(sourceIndex);
                 numEl.dataset.foldState = foldState;
 
                 const toggleEl = numEl.querySelector('.fold-toggle[data-fold-start]');
@@ -585,6 +585,7 @@ export const WEBVIEW_SCRIPT_SYNC = `
         let sourceStickySignature = '';
         let scrollLeader = null;
         let scrollLeaderUntil = 0;
+        let lastSyncedLine = Number.isFinite(Number(initialScrollLine)) ? Number(initialScrollLine) : 0;
         let lastSourceUserScrollIntentAt = 0;
         let lastPreviewUserScrollIntentAt = 0;
 
@@ -600,6 +601,7 @@ export const WEBVIEW_SCRIPT_SYNC = `
                 const initialRawHtml = sourceCodeEl.innerHTML;
                 renderSourceCode(initialRawHtml, initialSourceText, initialSourceLineCount, initialSourceLineOrigins);
             }
+            setTimeout(() => scrollToLine(lastSyncedLine), 0);
         } catch (e) {
             console.error('Error in initial source code render:', e);
         }
@@ -652,6 +654,10 @@ export const WEBVIEW_SCRIPT_SYNC = `
                 if (codeEl && typeof message.sourceHtml === 'string') {
                     renderSourceCode(message.sourceHtml, message.sourceText, message.sourceLineCount, message.sourceLineOrigins);
                 }
+                if (Number.isFinite(Number(message.scrollLine))) {
+                    lastSyncedLine = Number(message.scrollLine);
+                    setTimeout(() => scrollToLine(lastSyncedLine), 0);
+                }
             } else if (message.type === 'setViewMode') {
                 const previewEl = document.getElementById('preview-container');
                 const sourceShellEl = document.getElementById('source-shell');
@@ -675,6 +681,7 @@ export const WEBVIEW_SCRIPT_SYNC = `
                 }
                 setScrollLeader('editor', 160);
                 const line = message.line;
+                lastSyncedLine = Number.isFinite(Number(line)) ? Number(line) : lastSyncedLine;
                 scrollToLine(line);
             }
         });
@@ -689,6 +696,9 @@ export const WEBVIEW_SCRIPT_SYNC = `
                 const element = findElementAtViewportTop();
                 if (element) {
                     const line = parseInt(element.getAttribute('data-line'), 10);
+                    if (Number.isFinite(line)) {
+                        lastSyncedLine = line;
+                    }
                     vscode.postMessage({ command: 'scroll', line: line, origin: 'webview', mode: 'preview' });
                 }
             }
@@ -711,6 +721,7 @@ export const WEBVIEW_SCRIPT_SYNC = `
                 if (!lineEl) return;
                 const line = parseInt(lineEl.getAttribute('data-line'), 10);
                 if (Number.isFinite(line)) {
+                    lastSyncedLine = line;
                     vscode.postMessage({ command: 'scroll', line, origin: 'webview', mode: 'source' });
                 }
             });
@@ -742,13 +753,10 @@ export const WEBVIEW_SCRIPT_SYNC = `
 
         function collectSourceHeadings() {
             const parsedHeadings = latestSourceLines.map((rawLine, index) => parseSourceHeading(rawLine, index)).filter(Boolean);
-            let lastContentLine = latestSourceLines.length - 1;
-            while (lastContentLine > 0 && (latestSourceLines[lastContentLine] || '').trim() === '') {
-                lastContentLine--;
-            }
+            const lastDocumentLine = getLastStickyContentLine();
 
             sourceHeadings = parsedHeadings.map((heading, index) => {
-                let endLine = lastContentLine;
+                let endLine = lastDocumentLine;
                 for (let nextIndex = index + 1; nextIndex < parsedHeadings.length; nextIndex++) {
                     const nextHeading = parsedHeadings[nextIndex];
                     if (nextHeading.level <= heading.level) {
@@ -764,25 +772,14 @@ export const WEBVIEW_SCRIPT_SYNC = `
             });
         }
 
-        function getActiveSourceHeadingStack(currentLine) {
-            const anchorLine = Number.isFinite(currentLine) ? currentLine : getCurrentSourceAnchorLine();
-            const activeHeadings = [];
-
-            for (const heading of sourceHeadings) {
-                if (heading.line >= anchorLine) {
-                    break;
-                }
-                if (anchorLine > heading.endLine) {
-                    continue;
-                }
-                while (activeHeadings.length > 0 && activeHeadings[activeHeadings.length - 1].level >= heading.level) {
-                    activeHeadings.pop();
-                }
-                activeHeadings.push(heading);
+        function getLastStickyContentLine() {
+            const lastLine = Math.max(0, latestSourceLines.length - 1);
+            if (lastLine > 0 && (latestSourceLines[lastLine] || '') === '') {
+                return lastLine - 1;
             }
-
-            return activeHeadings;
+            return lastLine;
         }
+
 
         function renderSourceStickyHeadings(force) {
             const { sticky, content } = getSourceStickyParts();
@@ -799,13 +796,9 @@ export const WEBVIEW_SCRIPT_SYNC = `
 
             const sourceContainer = document.getElementById('source-container');
             const scrollTop = sourceContainer?.scrollTop || 0;
-            const currentLine = getCurrentSourceAnchorLine();
-            const activeHeadings = getActiveSourceHeadingStack(currentLine);
-            const visibleHeadings = activeHeadings.filter((heading) => {
-                const lineEl = findSourceLineBySourceIndex(heading.line);
-                return !!(lineEl && (lineEl.offsetTop + lineEl.offsetHeight) <= scrollTop);
-            });
-            const signature = visibleHeadings.map((heading) => heading.level + ':' + heading.line + ':' + heading.text).join('|');
+            const stickyState = findSourceStickyWidgetState(scrollTop);
+            const visibleHeadings = stickyState.headings;
+            const signature = visibleHeadings.map((heading) => heading.level + ':' + heading.line + ':' + heading.text).join('|') + ':' + stickyState.lastLineRelativePosition;
             if (visibleHeadings.length === 0) {
                 sticky.classList.add('is-empty');
                 content.innerHTML = '';
@@ -816,7 +809,7 @@ export const WEBVIEW_SCRIPT_SYNC = `
             }
 
             if (!force && signature === sourceStickySignature) {
-                applySourceStickyState(sticky, content, visibleHeadings, currentLine);
+                applySourceStickyState(sticky, content, stickyState.lastLineRelativePosition);
                 return;
             }
 
@@ -836,18 +829,90 @@ export const WEBVIEW_SCRIPT_SYNC = `
 
             sticky.classList.remove('is-empty');
             content.innerHTML = nextContentHtml;
-            applySourceStickyState(sticky, content, visibleHeadings, currentLine);
+            applySourceStickyState(sticky, content, stickyState.lastLineRelativePosition);
         }
 
-        function applySourceStickyState(sticky, content, visibleHeadings, currentLine) {
+        function buildSourceStickyCandidates() {
+            const candidates = [];
+            const headingStack = [];
+
+            for (const heading of sourceHeadings) {
+                const lineEl = findSourceLineBySourceIndex(heading.line);
+                if (!lineEl) continue;
+
+                while (headingStack.length > 0 && headingStack[headingStack.length - 1].level >= heading.level) {
+                    headingStack.pop();
+                }
+
+                const top = headingStack.reduce((sum, ancestor) => {
+                    const ancestorEl = findSourceLineBySourceIndex(ancestor.line);
+                    return sum + (ancestorEl ? getSourceModelLineHeight(ancestorEl) : 0);
+                }, 0);
+
+                candidates.push({
+                    heading,
+                    top,
+                    height: getSourceModelLineHeight(lineEl),
+                });
+                headingStack.push(heading);
+            }
+
+            return candidates;
+        }
+
+        function findSourceStickyWidgetState(scrollTop) {
+            const candidates = buildSourceStickyCandidates();
+            const headings = [];
+            let lastLineRelativePosition = 0;
+
+            for (const candidate of candidates) {
+                const heading = candidate.heading;
+                const startLineEl = findSourceLineBySourceIndex(heading.line);
+                const endLineEl = findSourceLineBySourceIndex(heading.endLine);
+                if (!startLineEl || !endLineEl) continue;
+
+                const topOfElement = candidate.top;
+                const bottomOfElement = topOfElement + candidate.height;
+                const topOfBeginningLine = startLineEl.offsetTop - scrollTop;
+                const bottomOfEndLine = getSourceModelLineBottom(endLineEl) - scrollTop;
+
+                if (topOfElement > topOfBeginningLine && topOfElement <= bottomOfEndLine) {
+                    headings.push(heading);
+                    if (bottomOfElement > bottomOfEndLine) {
+                        lastLineRelativePosition = bottomOfEndLine - bottomOfElement;
+                    } else {
+                        lastLineRelativePosition = 0;
+                    }
+                }
+            }
+
+            return { headings, lastLineRelativePosition };
+        }
+
+        function getSourceModelLineHeight(lineEl) {
+            const lineHeight = parseFloat(getComputedStyle(lineEl).lineHeight);
+            if (Number.isFinite(lineHeight) && lineHeight > 0) {
+                return lineHeight;
+            }
+            const rootLineHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mt-source-line-height'));
+            if (Number.isFinite(rootLineHeight) && rootLineHeight > 0) {
+                return rootLineHeight;
+            }
+            return Math.max(1, lineEl.offsetHeight || 1);
+        }
+
+        function getSourceModelLineBottom(lineEl) {
+            return lineEl.offsetTop + getSourceModelLineHeight(lineEl);
+        }
+
+        function applySourceStickyState(sticky, content, lastLineRelativePosition) {
             if (!sticky || !content) return;
             resetSourceStickyLineState(content);
-            const headingPushOffset = applySourceStickyHeadingPush(content, visibleHeadings);
-            applySourceStickyHeight(sticky, content, headingPushOffset);
-            applySourceStickyBottomPush(sticky);
+            applySourceStickyLastLinePosition(content, lastLineRelativePosition);
+            applySourceStickyHeight(sticky, content, lastLineRelativePosition);
         }
 
-        function applySourceStickyHeight(sticky, content, headingPushOffset) {
+        function applySourceStickyHeight(sticky, content, lastLineRelativePosition) {
             if (!sticky || !content) return;
             const contentHeight = content.scrollHeight;
             if (!Number.isFinite(contentHeight) || contentHeight <= 0) {
@@ -855,8 +920,17 @@ export const WEBVIEW_SCRIPT_SYNC = `
                 return;
             }
 
-            const nextHeight = Math.max(0, contentHeight - Math.max(0, headingPushOffset || 0));
+            const nextHeight = Math.max(0, contentHeight + Math.min(0, lastLineRelativePosition || 0));
             sticky.style.height = nextHeight > 0 ? (nextHeight + 'px') : '';
+        }
+
+        function applySourceStickyLastLinePosition(content, lastLineRelativePosition) {
+            const stickyLines = Array.from(content.querySelectorAll('.mt-source-sticky-line'));
+            if (stickyLines.length === 0) return;
+
+            const lastLine = stickyLines[stickyLines.length - 1];
+            const offset = Math.min(0, lastLineRelativePosition || 0);
+            lastLine.style.transform = offset < 0 ? 'translateY(' + offset + 'px)' : '';
         }
 
         function resetSourceStickyLineState(content) {
@@ -870,100 +944,6 @@ export const WEBVIEW_SCRIPT_SYNC = `
             }
         }
 
-        function applySourceStickyHeadingPush(content, visibleHeadings) {
-            if (!content || visibleHeadings.length === 0) return 0;
-            const pushState = getSourceStickyHeadingPushState(content, visibleHeadings);
-            if (!pushState) return 0;
-
-            const stickyLines = Array.from(content.querySelectorAll('.mt-source-sticky-line'));
-            for (let index = pushState.affectedStartIndex; index < stickyLines.length; index++) {
-                const line = stickyLines[index];
-                line.style.transform = 'translateY(' + (-pushState.pushOffset) + 'px)';
-            }
-            return pushState.pushOffset;
-        }
-
-        function getSourceStickyHeadingPushState(content, visibleHeadings) {
-            if (!content || visibleHeadings.length === 0) return null;
-
-            const nextHeadingState = getNextSourceStickyCandidate();
-            const sourceContainer = document.getElementById('source-container');
-            if (!nextHeadingState || !sourceContainer) return null;
-
-            const nextHeading = nextHeadingState.heading;
-            const nextHeadingLine = nextHeadingState.lineEl;
-
-            let affectedStartIndex = visibleHeadings.length;
-            for (let index = visibleHeadings.length - 1; index >= 0; index--) {
-                if (visibleHeadings[index].level >= nextHeading.level) {
-                    affectedStartIndex = index;
-                    continue;
-                }
-                break;
-            }
-
-            if (affectedStartIndex >= visibleHeadings.length) {
-                return null;
-            }
-
-            const stickyLines = Array.from(content.querySelectorAll('.mt-source-sticky-line'));
-            if (stickyLines.length !== visibleHeadings.length) {
-                return null;
-            }
-
-            let affectedTop = 0;
-            for (let index = 0; index < affectedStartIndex; index++) {
-                affectedTop += stickyLines[index].offsetHeight;
-            }
-
-            let affectedHeight = 0;
-            for (let index = affectedStartIndex; index < stickyLines.length; index++) {
-                affectedHeight += stickyLines[index].offsetHeight;
-            }
-
-            if (affectedHeight <= 0) {
-                return null;
-            }
-
-            const relativeTop = nextHeadingLine.offsetTop - sourceContainer.scrollTop;
-            const pushBoundary = affectedTop + affectedHeight;
-            const pushOffset = Math.max(0, Math.min(affectedHeight, pushBoundary - relativeTop));
-            if (pushOffset <= 0) {
-                return null;
-            }
-
-            return {
-                affectedStartIndex,
-                pushOffset,
-            };
-        }
-
-        function getNextSourceStickyCandidate() {
-            const sourceContainer = document.getElementById('source-container');
-            if (!sourceContainer) return null;
-            const scrollTop = sourceContainer.scrollTop;
-            for (const heading of sourceHeadings) {
-                const lineEl = findSourceLineBySourceIndex(heading.line);
-                if (!lineEl) continue;
-                if ((lineEl.offsetTop + lineEl.offsetHeight) > (scrollTop + 1)) {
-                    return { heading, lineEl };
-                }
-            }
-            return null;
-        }
-
-        function applySourceStickyBottomPush(sticky) {
-            if (!sticky) return;
-            const stickyPushOffset = getSourceStickyBottomPushOffset();
-            if (stickyPushOffset <= 0) {
-                sticky.style.transform = '';
-                return;
-            }
-
-            const maxPush = Math.max(0, sticky.offsetHeight);
-            const translateY = Math.min(maxPush, stickyPushOffset);
-            sticky.style.transform = 'translateY(' + (-translateY) + 'px)';
-        }
 
         function bindSourceStickyEvents() {
             const { sticky } = getSourceStickyParts();
@@ -1080,32 +1060,6 @@ export const WEBVIEW_SCRIPT_SYNC = `
             return candidate || firstVisible;
         }
 
-        function findLastSourceVisibleLine() {
-            const elements = Array.from(document.querySelectorAll('#source-code .code-line[data-line]'));
-            for (let i = elements.length - 1; i >= 0; i--) {
-                const el = elements[i];
-                if (el.style.display !== 'none') {
-                    return el;
-                }
-            }
-            return null;
-        }
-
-        function getCurrentSourceAnchorLine() {
-            const topLine = findSourceLineAtTop();
-            const currentLine = topLine ? parseInt(topLine.getAttribute('data-source-index') || '-1', 10) : 0;
-            return currentLine;
-        }
-
-        function getSourceStickyBottomPushOffset() {
-            const sourceContainer = document.getElementById('source-container');
-            if (!sourceContainer) return 0;
-
-            const lastVisibleLine = findLastSourceVisibleLine();
-            if (!lastVisibleLine) return 0;
-
-            return Math.max(0, sourceContainer.scrollTop - lastVisibleLine.offsetTop);
-        }
 
         function setLastInteractedLine(line) {
             if (!Number.isFinite(line) || line < 0) return;

@@ -9,6 +9,7 @@ export interface BuildPreviewWebviewHtmlArgs {
   sourceLineCount: number;
   sourceLineOrigins: number[];
   sourceLineHeight: number;
+  initialScrollLine: number;
   sourceHighlightError?: string;
   markdownCssUri: vscode.Uri;
   twinCssUri: vscode.Uri;
@@ -28,6 +29,7 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
     sourceLineCount,
     sourceLineOrigins,
     sourceLineHeight,
+    initialScrollLine,
     sourceHighlightError,
     markdownCssUri,
     twinCssUri,
@@ -49,6 +51,7 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
     sourceLineCount,
     sourceLineOrigins,
     sourceLineHeight,
+    initialScrollLine,
     sourceText,
     isSource,
   });

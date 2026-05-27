@@ -20,6 +20,11 @@ function createNonce(): string {
   return out;
 }
 
+function normalizeLineNumber(value: unknown): number {
+  const line = Number(value);
+  return Number.isFinite(line) && line >= 0 ? Math.floor(line) : 0;
+}
+
 function createLocalResourceRoots(extensionUri: vscode.Uri, document: vscode.TextDocument): vscode.Uri[] {
   const roots = [vscode.Uri.file(path.join(extensionUri.fsPath, 'media'))];
 
@@ -108,6 +113,14 @@ function getMarkdownStyleVars(): Record<string, string> {
   return vars;
 }
 
+function shouldScrollPreviewWithEditor(): boolean {
+  return vscode.workspace.getConfiguration('markdown.preview').get<boolean>('scrollPreviewWithEditor', true);
+}
+
+function shouldScrollEditorWithPreview(): boolean {
+  return vscode.workspace.getConfiguration('markdown.preview').get<boolean>('scrollEditorWithPreview', true);
+}
+
 export class PreviewPanel {
   public static currentPanel: PreviewPanel | undefined;
   public static readonly allPanels = new Map<string, PreviewPanel>();
@@ -126,6 +139,7 @@ export class PreviewPanel {
   private _scrollLeader: 'editor' | 'webview' | null = null;
   private _scrollLeaderUntil = 0;
   private _suppressEditorScrollUntil = 0;
+  private _lastSyncedLine = 0;
 
   public get editorDocumentUri(): vscode.Uri {
     return this._editor.document.uri;
@@ -287,9 +301,13 @@ export class PreviewPanel {
       message => {
         // メッセージ連携: Webview -> 拡張
         if (message.command === 'scroll') {
+          if (!shouldScrollEditorWithPreview()) {
+            return;
+          }
+          this._lastSyncedLine = normalizeLineNumber(message.line);
           this._setScrollLeader('webview');
           this._suppressEditorScrollUntil = Date.now() + 220;
-          this._handleScrollMessage(message.line);
+          this._handleScrollMessage(this._lastSyncedLine);
         }
       },
       null,
@@ -326,11 +344,16 @@ export class PreviewPanel {
     vscode.window.onDidChangeTextEditorVisibleRanges(
       e => {
         // スクロール連携: エディタ -> Webview
-        if (e.textEditor === this._editor && e.visibleRanges.length > 0) {
+        if (this._isEditorForDocument(e.textEditor) && e.visibleRanges.length > 0) {
+          if (!shouldScrollPreviewWithEditor()) {
+            return;
+          }
           if (Date.now() < this._suppressEditorScrollUntil || this._hasActiveScrollLeader('webview')) {
             return;
           }
           const topLine = e.visibleRanges[0].start.line;
+          this._editor = e.textEditor;
+          this._lastSyncedLine = topLine;
           this._setScrollLeader('editor', 180);
           this._panel.webview.postMessage({ type: 'scroll', line: topLine, origin: 'editor' });
         }
@@ -366,7 +389,15 @@ export class PreviewPanel {
     return this._scrollLeader === leader && Date.now() < this._scrollLeaderUntil;
   }
 
+  private _isEditorForDocument(editor: vscode.TextEditor | undefined): editor is vscode.TextEditor {
+    return !!editor && editor.document.uri.toString() === this._editor.document.uri.toString();
+  }
+
   private _handleScrollMessage(line: number) {
+    const visibleEditor = vscode.window.visibleTextEditors.find(editor => this._isEditorForDocument(editor));
+    if (visibleEditor) {
+      this._editor = visibleEditor;
+    }
     const range = new vscode.Range(line, 0, line, 0);
     this._editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
   }
@@ -464,6 +495,7 @@ export class PreviewPanel {
         sourceLineCount: sourceView.sourceLineCount,
         sourceLineOrigins: sourceView.sourceLineOrigins,
         sourceLineHeight: sourceView.sourceLineHeight,
+        initialScrollLine: this._lastSyncedLine,
         sourceHighlightError: sourceView.sourceHighlightError,
         markdownCssUri,
         twinCssUri,
@@ -483,6 +515,7 @@ export class PreviewPanel {
         sourceLineCount: shouldRenderSource ? sourceView.sourceLineCount : undefined,
         sourceLineOrigins: shouldRenderSource ? sourceView.sourceLineOrigins : undefined,
         sourceLineHeight: shouldRenderSource ? sourceView.sourceLineHeight : undefined,
+        scrollLine: this._lastSyncedLine,
         sourceHighlightError: shouldRenderSource ? sourceView.sourceHighlightError : undefined
       });
     }
