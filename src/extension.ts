@@ -15,6 +15,7 @@ import { t } from './i18n';
 import { isCursor } from './utils';
 import { retranslateActivePreview, retranslatePreviewDocument } from './previewActions';
 import { runTranslationForDocument } from './translationRunner';
+import { promptAzureRegion } from './azureRegion';
 
 let translationManager: TranslationManager;
 
@@ -150,7 +151,8 @@ function createToggleTranslationHandler(services: ExtensionServices): ToggleTran
     if (providerRequiresApiKey(providerId)) {
       const key = await apiKeyManager.getKey(providerId);
       if (!key) {
-        await apiKeyManager.prompt(providerId);
+        const configuredKey = await apiKeyManager.prompt(providerId);
+        if (!configuredKey) return;
       }
     }
 
@@ -188,7 +190,7 @@ function registerConfigurationSync(services: ExtensionServices): void {
 }
 
 function registerCommands(services: ExtensionServices, toggleHandler: ToggleTranslationHandler): void {
-  const { context, apiKeyManager, translationManager, providerSelector } = services;
+  const { context, translationManager, providerSelector } = services;
 
   registerCommand(context, 'markdownTwin.toggleTranslation', toggleHandler);
 
@@ -205,16 +207,15 @@ function registerCommands(services: ExtensionServices, toggleHandler: ToggleTran
   });
 
   registerCommand(context, 'markdownTwin.setApiKey', async () => {
-    const keyProviders = PROVIDER_DEFS
-      .filter(p => p.requiresKey)
-      .map(p => ({ label: p.displayName, id: p.id }));
-    const picked = await vscode.window.showQuickPick(keyProviders, {
-      title: `Markdown Twin: ${t('apiKeySetButton')}`,
-      placeHolder: t('selectProviderToReEnter'),
-    });
-    if (!picked) return;
-    const existing = await apiKeyManager.getKey(picked.id);
-    await apiKeyManager.prompt(picked.id, existing);
+    await providerSelector.showApiKeyPicker();
+  });
+
+  registerCommand(context, 'markdownTwin.configureAzureRegion', async () => {
+    await promptAzureRegion();
+  });
+
+  registerCommand(context, 'markdownTwin.openSettings', async () => {
+    await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:yukiidayo.vscode-markdown-twin');
   });
 
   registerCommand(context, 'markdownTwin.copyTranslatedMarkdown', async () => {

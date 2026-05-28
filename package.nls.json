@@ -1,6 +1,6 @@
 {
-  "markdownTwin.provider.description": "Active translation provider.",
-  "markdownTwin.azureRegion.markdownDescription": "Azure region for Azure Translator. **Used only when provider is Azure (microsoft).** (e.g. global, japaneast, eastus, eastasia)",
+  "markdownTwin.provider.description": "Active translation provider. You can also change provider and API keys from the Markdown Twin menu.",
+  "markdownTwin.azureRegion.markdownDescription": "Azure region for Azure Translator. **Used only when provider is Azure (microsoft).** You can also configure it from `Markdown Twin: Configure Azure Region`. (e.g. global, japaneast, eastus, eastasia)",
   "markdownTwin.sourceLanguage.description": "Source language for translation.",
   "markdownTwin.targetLanguage.description": "Target language for translation.",
   "markdownTwin.defaultMode.description": "Default display mode when translation is toggled on.",
@@ -9,12 +9,16 @@
   "markdownTwin.commands.toggleTranslation": "Markdown Twin: Toggle Translation",
   "markdownTwin.commands.toggleBilingual": "Markdown Twin: Toggle Bilingual Mode",
   "markdownTwin.commands.selectProvider": "Markdown Twin: Select Translation Provider",
-  "markdownTwin.commands.setApiKey": "Markdown Twin: Set API Key",
+  "markdownTwin.commands.setApiKey": "Markdown Twin: Set / Change API Key",
   "markdownTwin.commands.copyTranslatedMarkdown": "Markdown Twin: Copy Translated Markdown",
   "markdownTwin.commands.copyFromPreviewContext": "Copy",
   "markdownTwin.commands.retranslateFromPreviewContext": "Retranslate",
   "markdownTwin.commands.exportTranslatedMarkdown": "Markdown Twin: Export Translated Markdown",
   "markdownTwin.commands.openTranslatedSource": "Markdown Twin: Show Translated Source",
   "markdownTwin.commands.openPreviewFromSource": "Markdown Twin: Show Translated Preview",
-  "markdownTwin.configuration.title": "Markdown Twin"
+  "markdownTwin.configuration.title": "Markdown Twin",
+  "markdownTwin.commands.configureAzureRegion": "Markdown Twin: Configure Azure Region",
+  "markdownTwin.commands.openSettings": "Markdown Twin: Open Settings",
+  "markdownTwin.defaultMode.translationOnly": "Translation Only",
+  "markdownTwin.defaultMode.bilingual": "Bilingual"
 }

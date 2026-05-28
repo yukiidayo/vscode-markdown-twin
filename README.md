@@ -63,8 +63,9 @@ If your VS Code display language is not supported, Markdown Twin falls back to E
 
 1. Open a Markdown file.
 2. Run `Markdown Twin: Set API Key` and configure an API key for your translation provider.
-3. Run `Markdown Twin: Select Translation Provider` to choose the provider, output language, and display mode.
-4. Run `Markdown Twin: Toggle Translation`.
+3. If you use Azure Translator, enter the Azure region when prompted after saving the API key.
+4. Run `Markdown Twin: Select Translation Provider` to choose the provider, output language, and display mode.
+5. Run `Markdown Twin: Toggle Translation`.
 
 ## Settings
 
@@ -75,6 +76,15 @@ If your VS Code display language is not supported, Markdown Twin falls back to E
 - `markdownTwin.defaultMode`: Default display mode.
 - `markdownTwin.batchSize`: Number of blocks to translate per batch.
 - `markdownTwin.debounceDelay`: Delay before re-translating after document changes.
+
+Provider, API key, and Azure region can also be configured from the Markdown Twin Quick Pick menu.
+
+Useful commands:
+
+- `Markdown Twin: Set API Key`
+- `Markdown Twin: Configure Azure Region`
+- `Markdown Twin: Select Translation Provider`
+- `Markdown Twin: Open Settings`
 
 ## Privacy And Security
 
@@ -93,4 +103,3 @@ Some providers may support the same language with different API language codes. 
 ## License
 
 MIT
-

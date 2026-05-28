@@ -9,6 +9,8 @@ All notable changes to Markdown Twin will be documented in this file.
 - Added Simplified Chinese and Traditional Chinese as translation languages.
 - Added Simplified Chinese and Traditional Chinese UI localization.
 - Added provider-specific language code mapping for Chinese variants.
+- Added Quick Pick entries and commands for API key and Azure region configuration.
+- Added Azure region prompt after saving an Azure Translator API key.
 - Added consistency tests for language settings, provider mappings, and localization files.
 
 ### Changed

@@ -7,14 +7,23 @@ export interface TranslationType {
   bilingual: string;
   translationOnly: string;
   back: string;
-  resetApiKey: string;
+  setOrChangeApiKey: string;
+  deleteApiKey: string;
   selectProvider: string;
   chooseProvider: string;
   chooseTargetLanguage: string;
   outputLanguage: string;
-  resetApiKeyTitle: string;
-  selectProviderToReEnter: string;
+  apiKey: string;
+  apiKeyConfigured: string;
+  apiKeyNotConfigured: string;
+  azureRegion: string;
+  azureRegionPrompt: string;
+  azureRegionPlaceHolder: string;
+  azureRegionSaved: (region: string) => string;
   noSavedKeys: string;
+  delete: string;
+  deleteApiKeyConfirm: (provider: string) => string;
+  apiKeyDeleted: (provider: string) => string;
 
   // API Key Manager
   apiKeyAlreadyConfigured: string;

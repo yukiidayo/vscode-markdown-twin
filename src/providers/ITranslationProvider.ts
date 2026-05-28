@@ -12,7 +12,7 @@ export interface ITranslationProvider {
   ): Promise<string[]>;
 }
 
-export const DEFAULT_PROVIDER_ID: ProviderId = 'microsoft';
+export const DEFAULT_PROVIDER_ID: ProviderId = 'google-cloud';
 
 export const PROVIDER_DISPLAY_NAMES: Record<ProviderId, string> = {
   'google-cloud': 'Google Cloud',

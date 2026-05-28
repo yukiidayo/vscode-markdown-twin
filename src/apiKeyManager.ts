@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { t } from './i18n';
+import { promptAzureRegion } from './azureRegion';
 
 export class ApiKeyManager {
   constructor(private secrets: vscode.SecretStorage) {}
@@ -35,6 +36,12 @@ export class ApiKeyManager {
     if (key !== undefined) {
       const trimmed = key.trim();
       if (trimmed) {
+        if (provider === 'microsoft') {
+          const region = await promptAzureRegion();
+          if (region === undefined) {
+            return existingKey;
+          }
+        }
         await this.setKey(provider, trimmed);
         return trimmed;
       }

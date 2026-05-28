@@ -192,6 +192,14 @@
         "title": "%markdownTwin.commands.setApiKey%"
       },
       {
+        "command": "markdownTwin.configureAzureRegion",
+        "title": "%markdownTwin.commands.configureAzureRegion%"
+      },
+      {
+        "command": "markdownTwin.openSettings",
+        "title": "%markdownTwin.commands.openSettings%"
+      },
+      {
         "command": "markdownTwin.copyTranslatedMarkdown",
         "title": "%markdownTwin.commands.copyTranslatedMarkdown%",
         "icon": "$(copy)"
@@ -350,7 +358,7 @@
             "deepl",
             "papago"
           ],
-          "default": "microsoft",
+          "default": "google-cloud",
           "description": "%markdownTwin.provider.description%",
           "order": 1,
           "enumItemLabels": [
@@ -391,7 +399,7 @@
           "description": "%markdownTwin.sourceLanguage.description%",
           "order": 3,
           "enumItemLabels": [
-            "Auto Detect",
+            "Auto",
             "Japanese (日本語)",
             "English (English)",
             "Korean (한국어)",
@@ -460,7 +468,11 @@
           ],
           "default": "Translation Only",
           "description": "%markdownTwin.defaultMode.description%",
-          "order": 5
+          "order": 5,
+          "enumItemLabels": [
+            "%markdownTwin.defaultMode.translationOnly%",
+            "%markdownTwin.defaultMode.bilingual%"
+          ]
         },
         "markdownTwin.batchSize": {
           "type": "number",

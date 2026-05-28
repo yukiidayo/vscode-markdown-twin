@@ -11,6 +11,10 @@ export const ConfigurationTarget = {
   WorkspaceFolder: 3,
 };
 
+export const QuickPickItemKind = {
+  Separator: -1,
+};
+
 class MockStatusBarItem {
   text = '';
   tooltip = '';
@@ -27,6 +31,7 @@ export const window = {
     dispose: jest.fn(),
   })),
   showErrorMessage: jest.fn(),
+  showWarningMessage: jest.fn(),
   showInformationMessage: jest.fn(),
   showInputBox: jest.fn(),
   showQuickPick: jest.fn(),
@@ -80,4 +85,13 @@ export const Uri = {
     fsPath: val,
     scheme: 'file',
   })),
+  joinPath: jest.fn((base: any, ...paths: string[]) => {
+    const basePath = base?.fsPath ?? '';
+    const joined = [basePath, ...paths].join('/');
+    return {
+      toString: () => `file://${joined}`,
+      fsPath: joined,
+      scheme: 'file',
+    };
+  }),
 };

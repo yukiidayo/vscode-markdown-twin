@@ -117,7 +117,7 @@ export function resolveSourceLanguageCode(lang: string): string {
 
 export function getLanguageLabel(code: string): string {
   if (code === AUTO_DETECT_LANG_CODE) {
-    return 'Auto Detect';
+    return 'Auto';
   }
 
   return TARGET_LANGUAGES.find(l => l.code === code)?.label ?? code;
