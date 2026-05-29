@@ -3,7 +3,7 @@ import { TranslationManager } from './translationManager';
 import { StatusBar } from './statusBar';
 import { ApiKeyManager } from './apiKeyManager';
 import { ProviderSelector, PROVIDER_DEFS } from './providerSelector';
-import { normalizeProviderId, providerRequiresApiKey } from './providers/ITranslationProvider';
+import { normalizeProviderId } from './providers/ITranslationProvider';
 import {
   SUPPORTED_LANGUAGES,
   getTargetLanguageCode,
@@ -108,7 +108,7 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 function createToggleTranslationHandler(services: ExtensionServices): ToggleTranslationHandler {
-  const { context, apiKeyManager, translationManager, providerSelector } = services;
+  const { context, translationManager, providerSelector } = services;
 
   return async (requestedLangCode?: string) => {
     if (requestedLangCode) {
@@ -150,13 +150,6 @@ function createToggleTranslationHandler(services: ExtensionServices): ToggleTran
     }
 
     const providerId = normalizeProviderId(provider);
-    if (providerRequiresApiKey(providerId)) {
-      const key = await apiKeyManager.getKey(providerId);
-      if (!key) {
-        const configuredKey = await apiKeyManager.prompt(providerId);
-        if (!configuredKey) return;
-      }
-    }
 
     const panelReady = await PreviewPanel.createOrShow(context.extensionUri, translationManager, document);
     if (!panelReady) return;

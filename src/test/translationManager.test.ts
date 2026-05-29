@@ -45,4 +45,24 @@ describe('TranslationManager', () => {
     expect(bilingual.text).toContain('mt-bilingual-original');
     expect(cleanSource.text).toBe('Translated sentence.');
   });
+
+  it('reports a missing API key without opening the API key prompt', async () => {
+    const apiKeyManager = {
+      getKey: jest.fn(() => Promise.resolve(undefined)),
+    };
+    const manager = new TranslationManager(apiKeyManager as any);
+    const document = {
+      uri: vscode.Uri.file('/workspace/requirements.md'),
+      getText: () => '原文です。',
+    } as any;
+
+    const result = await manager.startTranslation(document, 'google-cloud');
+
+    expect(result).toBe(false);
+    expect(apiKeyManager.getKey).toHaveBeenCalledWith('google-cloud');
+    expect(vscode.window.showInputBox).not.toHaveBeenCalled();
+    expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Google Cloud')
+    );
+  });
 });
