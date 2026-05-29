@@ -293,6 +293,7 @@ function registerEditorDocumentListeners(services: ExtensionServices): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument(e => {
+      if (e.document.languageId !== 'markdown') return;
       translationManager.invalidateCache(e.document.uri);
     })
   );

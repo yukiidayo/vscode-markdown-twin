@@ -51,6 +51,7 @@ export class TranslationManager implements vscode.Disposable {
     }
     const suffix = showOutputHint ? t('showOutputHint') : '';
     vscode.window.showErrorMessage(`Markdown Twin: ${message}${suffix}`);
+    this.outputChannel.show(true);
   }
 
   logInfo(message: string): void {
@@ -110,6 +111,11 @@ export class TranslationManager implements vscode.Disposable {
   }
 
   async startTranslation(document: vscode.TextDocument, overrideProvider?: string): Promise<boolean> {
+    if (document.languageId !== 'markdown') {
+      this.logWarning(`Skip translation for non-markdown document: ${document.uri.toString()}`);
+      return false;
+    }
+
     const sessionId = ++this.currentTranslationSessionId;
 
     const config = vscode.workspace.getConfiguration('markdownTwin');
@@ -126,6 +132,9 @@ export class TranslationManager implements vscode.Disposable {
       p => p.editorDocumentUri.toString() === docUriStr
     );
     const targetLangs = panelsForDoc.length > 0 ? panelsForDoc.map(p => p.langCode) : [defaultTargetLang];
+    this.logInfo(
+      `Start translation: provider=${providerId}, source=${sourceLang}, targets=${targetLangs.join(',')}, uri=${document.uri.toString()}`
+    );
 
     if (providerRequiresApiKey(providerId)) {
       const key = await this.apiKeyManager.getKey(providerId);
@@ -151,8 +160,12 @@ export class TranslationManager implements vscode.Disposable {
     const { langToTranslateMap, totalCount } = this.cache.preparePendingTranslations(
       document.uri, targetLangs, currentTexts
     );
+    this.logInfo(
+      `Translation queue: uniqueTexts=${currentTexts.size}, totalPending=${totalCount}, targets=${targetLangs.join(',')}`
+    );
 
     if (totalCount === 0) {
+      this.logWarning(`No pending translations for ${document.uri.toString()}`);
       this.statusBar?.showComplete(this.currentMode);
       this.onTranslationUpdatedEmitter.fire(document.uri);
       return true;
@@ -224,6 +237,9 @@ export class TranslationManager implements vscode.Disposable {
       for (let i = 0; i < textsToTranslate.length; i += batchSize) {
         if (fatalError || !this.translationActive || this.currentTranslationSessionId !== sessionId) break;
         const batch = textsToTranslate.slice(i, i + batchSize);
+        this.logInfo(
+          `Translating batch: provider=${providerName}, target=${targetLang}, size=${batch.length}, offset=${i}`
+        );
 
         try {
           const translated = await provider.translate(batch, sourceLang, targetLang);

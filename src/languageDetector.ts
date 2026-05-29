@@ -50,7 +50,8 @@ export interface TextPart {
 
 export function splitTranslatableParts(text: string, sourceLang: string): TextPart[] {
   const parts: TextPart[] = [];
-  const identifierPattern = /([A-Za-z0-9][A-Za-z0-9\-_./:@#]*)/g;
+  // Keep obviously code-like spans intact, but allow normal prose words to be translated.
+  const identifierPattern = /(`[^`]*`|https?:\/\/[^\s)]+|www\.[^\s)]+|[A-Za-z0-9][A-Za-z0-9\-_./:@#]*[0-9_./:@#-][A-Za-z0-9\-_./:@#]*)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
