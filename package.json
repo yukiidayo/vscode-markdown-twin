@@ -317,22 +317,22 @@
         },
         {
           "command": "markdownTwin.copyTranslatedMarkdown",
-          "when": "activeWebviewPanelId == 'markdownTwinPreview'",
+          "when": "markdownTwin.previewActive",
           "group": "navigation@2"
         },
         {
           "command": "markdownTwin.exportTranslatedMarkdown",
-          "when": "activeWebviewPanelId == 'markdownTwinPreview'",
+          "when": "markdownTwin.previewActive",
           "group": "navigation@3"
         },
         {
           "command": "markdownTwin.openTranslatedSource",
-          "when": "activeWebviewPanelId == 'markdownTwinPreview' && !markdownTwin.showingSource",
+          "when": "markdownTwin.previewActive && !markdownTwin.showingSource",
           "group": "navigation@4"
         },
         {
           "command": "markdownTwin.openPreviewFromSource",
-          "when": "activeWebviewPanelId == 'markdownTwinPreview' && markdownTwin.showingSource",
+          "when": "markdownTwin.previewActive && markdownTwin.showingSource",
           "group": "navigation@4"
         }
       ],
@@ -395,7 +395,7 @@
             "ar",
             "hi"
           ],
-          "default": "ja",
+          "default": "auto",
           "description": "%markdownTwin.sourceLanguage.description%",
           "order": 3,
           "enumItemLabels": [

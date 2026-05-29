@@ -41,7 +41,7 @@ export const window = {
 const mockConfig = {
   get: jest.fn((key: string) => {
     if (key === 'provider') return 'google-cloud';
-    if (key === 'sourceLanguage') return 'ja';
+    if (key === 'sourceLanguage') return 'auto';
     if (key === 'targetLanguage') return 'ko';
     if (key === 'batchSize') return 10;
     if (key === 'defaultMode') return 'Translation Only';
@@ -72,6 +72,12 @@ export class Disposable {
     return new Disposable();
   }
   dispose() {}
+}
+
+export class EventEmitter<T = any> {
+  event = jest.fn();
+  fire = jest.fn((_event?: T) => undefined);
+  dispose = jest.fn();
 }
 
 export const Uri = {

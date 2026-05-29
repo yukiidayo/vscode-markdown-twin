@@ -79,7 +79,7 @@ export class ProviderSelector {
       }
 
       if (top.action === 'mode') {
-        this.translationManager.toggleMode();
+        await this.translationManager.toggleMode();
         return;
       }
 

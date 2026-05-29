@@ -77,8 +77,12 @@ export class TranslationManager implements vscode.Disposable {
     return this.currentMode;
   }
 
-  toggleMode(): void {
+  async toggleMode(): Promise<void> {
     this.currentMode = this.currentMode === 'translation-only' ? 'bilingual' : 'translation-only';
+    const configValue = this.currentMode === 'bilingual' ? 'Bilingual' : 'Translation Only';
+    await vscode.workspace
+      .getConfiguration('markdownTwin')
+      .update('defaultMode', configValue, vscode.ConfigurationTarget.Global);
     this.statusBar?.update(this.currentMode);
     this.onTranslationUpdatedEmitter.fire(undefined);
   }
@@ -112,7 +116,7 @@ export class TranslationManager implements vscode.Disposable {
     const providerId = normalizeProviderId(overrideProvider ?? config.get<string>('provider'));
     this.statusBar?.setActiveProvider(providerId);
 
-    const sourceLang = resolveSourceLanguageCode(config.get<string>('sourceLanguage') ?? 'ja');
+    const sourceLang = resolveSourceLanguageCode(config.get<string>('sourceLanguage') ?? 'auto');
     this.currentSourceLang = sourceLang;
     const defaultTargetLang = normalizeTargetLanguageCode(config.get<string>('targetLanguage'));
     const batchSize = config.get<number>('batchSize') ?? 10;
@@ -330,7 +334,11 @@ export class TranslationManager implements vscode.Disposable {
     this.onTranslationUpdatedEmitter.fire(uri);
   }
 
-  generateTranslatedMarkdown(document: vscode.TextDocument, langCode: string): TranslatedMarkdownResult {
+  generateTranslatedMarkdown(
+    document: vscode.TextDocument,
+    langCode: string,
+    mode: TranslationViewMode = this.getMode()
+  ): TranslatedMarkdownResult {
     const docCache = this.cache.getDocumentCache(document.uri, langCode);
     if (!docCache || docCache.size === 0) {
       const text = document.getText();
@@ -344,7 +352,7 @@ export class TranslationManager implements vscode.Disposable {
     return buildTranslatedMarkdown({
       document,
       langCode,
-      mode: this.getMode(),
+      mode,
       md: this.md,
       getTranslation: (content, code) => this.getTranslation(document.uri, content, code),
     });

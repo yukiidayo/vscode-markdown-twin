@@ -6,7 +6,7 @@ export interface Language {
   displayCode: string;
 }
 
-export const DEFAULT_SOURCE_LANG_CODE = 'ja';
+export const DEFAULT_SOURCE_LANG_CODE = 'auto';
 export const DEFAULT_TARGET_LANG_CODE = 'ko';
 export const AUTO_DETECT_LANG_CODE = 'auto';
 

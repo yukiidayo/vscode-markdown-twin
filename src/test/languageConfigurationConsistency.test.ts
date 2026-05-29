@@ -29,4 +29,20 @@ describe('language configuration consistency', () => {
       expect(fs.existsSync(path.join(__dirname, '..', '..', 'media', 'flags', `${language.code}.svg`))).toBe(true);
     }
   });
+
+  it('scopes Twin preview title actions to the Twin preview context', () => {
+    const editorTitleMenus: Array<{ command: string; when?: string }> = packageJson.contributes.menus['editor/title'];
+    const previewOnlyCommands = [
+      'markdownTwin.copyTranslatedMarkdown',
+      'markdownTwin.exportTranslatedMarkdown',
+      'markdownTwin.openTranslatedSource',
+      'markdownTwin.openPreviewFromSource',
+    ];
+
+    for (const command of previewOnlyCommands) {
+      const menu = editorTitleMenus.find(item => item.command === command);
+      expect(menu?.when).toContain('markdownTwin.previewActive');
+      expect(menu?.when).not.toContain('activeWebviewPanelId');
+    }
+  });
 });

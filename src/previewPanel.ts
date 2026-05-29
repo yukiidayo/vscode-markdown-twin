@@ -48,28 +48,36 @@ export class PreviewPanel {
 
   public static getActivePanel(): PreviewPanel | undefined {
     if (PreviewPanel.currentPanel?._panel.active) {
+      PreviewPanel.syncActiveContexts();
       return PreviewPanel.currentPanel;
     }
 
     const active = Array.from(PreviewPanel.allPanels.values()).find(panel => panel._panel.active);
     if (active) {
       PreviewPanel.currentPanel = active;
-      active._syncShowingSourceContext();
+      PreviewPanel.syncActiveContexts();
       return active;
     }
 
+    PreviewPanel.syncActiveContexts();
     return PreviewPanel.currentPanel;
+  }
+
+  private static syncActiveContexts(): void {
+    const active = Array.from(PreviewPanel.allPanels.values()).find(panel => panel._panel.active);
+    if (active) {
+      PreviewPanel.currentPanel = active;
+    }
+
+    void vscode.commands.executeCommand('setContext', 'markdownTwin.previewActive', !!active);
+    void vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', active?._viewMode === 'source');
   }
 
   public setViewMode(mode: 'preview' | 'source'): void {
     this._viewMode = mode;
     this._panel.webview.postMessage({ type: 'setViewMode', mode });
-    this._syncShowingSourceContext();
+    PreviewPanel.syncActiveContexts();
     void this._update();
-  }
-
-  private _syncShowingSourceContext(): void {
-    vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', this._viewMode === 'source');
   }
 
   private static async resolveEditorForDocument(
@@ -119,7 +127,7 @@ export class PreviewPanel {
     const existing = PreviewPanel.allPanels.get(panelKey);
     if (existing) {
       PreviewPanel.currentPanel = existing;
-      existing._syncShowingSourceContext();
+      PreviewPanel.syncActiveContexts();
       if (!isCursor()) {
         existing._panel.reveal(targetColumn);
       }
@@ -142,6 +150,7 @@ export class PreviewPanel {
     const newPanel = new PreviewPanel(panel, extensionUri, activeEditor, translationManager, code);
     PreviewPanel.currentPanel = newPanel;
     PreviewPanel.allPanels.set(panelKey, newPanel);
+    PreviewPanel.syncActiveContexts();
     return true;
   }
 
@@ -170,9 +179,9 @@ export class PreviewPanel {
 
     this._panel.onDidChangeViewState(
       () => {
+        PreviewPanel.syncActiveContexts();
         if (!this._panel.active) return;
         PreviewPanel.currentPanel = this;
-        this._syncShowingSourceContext();
         if (this.translationManager.isActive()) {
           void runTranslationForDocument(this.translationManager, this._editor.document);
         } else {
@@ -304,15 +313,18 @@ export class PreviewPanel {
   private async _update() {
     const webview = this._panel.webview;
     const document = this._editor.document;
-    const translated = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
     const shouldRenderPreview = this._viewMode === 'preview' || !this._isInitialized;
     const shouldRenderSource = this._viewMode === 'source';
-    const renderedHtml = shouldRenderPreview ? this.renderPreviewHtml(translated) : undefined;
+    const previewTranslated = this.translationManager.generateTranslatedMarkdown(document, this.langCode);
+    const sourceTranslated = shouldRenderSource
+      ? this.translationManager.generateTranslatedMarkdown(document, this.langCode, 'translation-only')
+      : previewTranslated;
+    const renderedHtml = shouldRenderPreview ? this.renderPreviewHtml(previewTranslated) : undefined;
     const sourceView = shouldRenderSource
-      ? await buildSourceViewModel(translated, this._sourceHighlighter, (message, err) => {
+      ? await buildSourceViewModel(sourceTranslated, this._sourceHighlighter, (message, err) => {
         this.translationManager.logError(message, err, false);
       })
-      : emptySourceViewModel(translated);
+      : emptySourceViewModel(sourceTranslated);
 
     if (!this._isInitialized) {
       const twinCssUri = webview.asWebviewUri(
@@ -366,17 +378,13 @@ export class PreviewPanel {
     if (PreviewPanel.currentPanel === this) {
       const remaining = Array.from(PreviewPanel.allPanels.values());
       PreviewPanel.currentPanel = remaining.length > 0 ? remaining[remaining.length - 1] : undefined;
-      if (PreviewPanel.currentPanel) {
-        PreviewPanel.currentPanel._syncShowingSourceContext();
-      } else {
-        vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', false);
-      }
-    } else if (PreviewPanel.allPanels.size === 0) {
-      vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', false);
     }
+    PreviewPanel.syncActiveContexts();
 
     if (PreviewPanel.allPanels.size === 0) {
       this.translationManager.stopTranslation();
+      vscode.commands.executeCommand('setContext', 'markdownTwin.previewActive', false);
+      vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', false);
       vscode.commands.executeCommand('setContext', 'markdownTwin.translationActive', false);
     }
 

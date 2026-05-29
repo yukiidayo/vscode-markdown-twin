@@ -98,6 +98,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const services: ExtensionServices = { context, apiKeyManager, translationManager, statusBar, providerSelector };
 
   syncTargetLangContext();
+  void vscode.commands.executeCommand('setContext', 'markdownTwin.previewActive', false);
+  void vscode.commands.executeCommand('setContext', 'markdownTwin.showingSource', false);
   registerConfigurationSync(services);
   registerCommands(services, createToggleTranslationHandler(services));
   registerEditorDocumentListeners(services);
@@ -198,8 +200,8 @@ function registerCommands(services: ExtensionServices, toggleHandler: ToggleTran
     registerCommand(context, `markdownTwin.toggleTranslation.${lang.code}`, () => toggleHandler(lang.code));
   }
 
-  registerCommand(context, 'markdownTwin.toggleBilingual', () => {
-    translationManager.toggleMode();
+  registerCommand(context, 'markdownTwin.toggleBilingual', async () => {
+    await translationManager.toggleMode();
   });
 
   registerCommand(context, 'markdownTwin.selectProvider', async () => {
@@ -222,7 +224,11 @@ function registerCommands(services: ExtensionServices, toggleHandler: ToggleTran
     const activePanel = PreviewPanel.getActivePanel();
     if (!activePanel) return;
     try {
-      const translated = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
+      const translated = translationManager.generateTranslatedMarkdown(
+        activePanel.editorDocument,
+        activePanel.langCode,
+        'translation-only'
+      );
       await vscode.env.clipboard.writeText(translated.text);
       vscode.window.showInformationMessage(t('copiedToClipboard'));
     } catch (err: any) {
@@ -234,7 +240,11 @@ function registerCommands(services: ExtensionServices, toggleHandler: ToggleTran
     const activePanel = PreviewPanel.getActivePanel();
     if (!activePanel) return;
     try {
-      const translated = translationManager.generateTranslatedMarkdown(activePanel.editorDocument, activePanel.langCode);
+      const translated = translationManager.generateTranslatedMarkdown(
+        activePanel.editorDocument,
+        activePanel.langCode,
+        'translation-only'
+      );
       const saveUri = await promptForTranslatedMarkdownSaveUri(activePanel);
       if (!saveUri) return;
 
