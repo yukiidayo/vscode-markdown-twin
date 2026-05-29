@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { t } from './i18n';
+import { promptAzureRegion } from './azureRegion';
 
 export class ApiKeyManager {
   constructor(private secrets: vscode.SecretStorage) {}
@@ -16,28 +18,35 @@ export class ApiKeyManager {
   }
 
   async prompt(provider: string, existingKey?: string): Promise<string | undefined> {
-    let placeHolder = existingKey ? '•••••••• (Already configured. Enter new key to overwrite)' : 'Paste your API key here';
-    let promptMessage = `Enter your ${provider} API key`;
+    let placeHolder = existingKey ? t('apiKeyAlreadyConfigured') : t('apiKeyPaste');
+    let promptMessage = t('apiKeyEnter', provider);
 
     if (provider === 'papago') {
-      placeHolder = existingKey ? '•••••••• (Already configured. Format: ClientID:ClientSecret)' : 'Format: ClientID:ClientSecret';
-      promptMessage = 'Enter Papago API key as "ClientID:ClientSecret"';
+      placeHolder = existingKey ? t('apiKeyAlreadyConfiguredPapago') : t('apiKeyFormatPapago');
+      promptMessage = t('apiKeyEnterPapago');
     }
 
     const key = await vscode.window.showInputBox({
       prompt: promptMessage,
-      placeHolder: placeHolder,
-      password: true,        // マスク表示
-      ignoreFocusOut: true,  // フォーカスが外れても閉じない
+      placeHolder,
+      password: true,
+      ignoreFocusOut: true,
     });
 
     if (key !== undefined) {
       const trimmed = key.trim();
       if (trimmed) {
+        if (provider === 'microsoft') {
+          const region = await promptAzureRegion();
+          if (region === undefined) {
+            return existingKey;
+          }
+        }
         await this.setKey(provider, trimmed);
         return trimmed;
       }
     }
+
     return existingKey;
   }
 }

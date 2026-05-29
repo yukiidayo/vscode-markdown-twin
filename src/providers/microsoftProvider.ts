@@ -1,5 +1,16 @@
 import { ITranslationProvider } from './ITranslationProvider';
 import * as vscode from 'vscode';
+import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
+import { mapLanguageCodeForProvider } from './languageCodeMapper';
+
+export class AzureRegionError extends Error {
+  readonly region: string;
+  constructor(region: string) {
+    super(`Azure translation failed (401): wrong region "${region}"`);
+    this.name = 'AzureRegionError';
+    this.region = region;
+  }
+}
 
 export class MicrosoftProvider implements ITranslationProvider {
   readonly id = 'microsoft';
@@ -13,10 +24,10 @@ export class MicrosoftProvider implements ITranslationProvider {
 
     const params = new URLSearchParams({
       'api-version': '3.0',
-      to: targetLang,
+      to: mapLanguageCodeForProvider(this.id, targetLang),
     });
     if (sourceLang !== 'auto') {
-      params.set('from', sourceLang);
+      params.set('from', mapLanguageCodeForProvider(this.id, sourceLang));
     }
 
     const config = vscode.workspace.getConfiguration('markdownTwin');
@@ -36,8 +47,18 @@ export class MicrosoftProvider implements ITranslationProvider {
     );
 
     if (!response.ok) {
-      const errorJson: any = await response.json().catch(() => ({}));
-      const errorMsg = errorJson?.error?.message ?? response.statusText;
+      const errorMsg = await readResponseErrorMessage(response, [
+        payload => payload?.error?.message,
+      ]);
+      if (response.status === 429) {
+        throw new TooManyRequestsError(`Azure rate limit: ${errorMsg}`);
+      }
+      if (response.status === 401) {
+        const lower = errorMsg.toLowerCase();
+        if (lower.includes('endpoint') || lower.includes('regional')) {
+          throw new AzureRegionError(region);
+        }
+      }
       throw new Error(`Azure translation failed (${response.status}): ${errorMsg}`);
     }
 

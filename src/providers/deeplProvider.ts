@@ -1,4 +1,6 @@
 import { ITranslationProvider } from './ITranslationProvider';
+import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
+import { mapDeepLSourceLanguageCode, mapDeepLTargetLanguageCode } from './languageCodeMapper';
 
 export class DeeplProvider implements ITranslationProvider {
   readonly id = 'deepl';
@@ -10,7 +12,6 @@ export class DeeplProvider implements ITranslationProvider {
   async translate(texts: string[], sourceLang: string, targetLang: string): Promise<string[]> {
     if (texts.length === 0) return [];
 
-    // キーが ':fx' で終わる場合はFree tierエンドポイント
     const endpoint = this.apiKey.endsWith(':fx')
       ? 'https://api-free.deepl.com/v2/translate'
       : 'https://api.deepl.com/v2/translate';
@@ -18,20 +19,24 @@ export class DeeplProvider implements ITranslationProvider {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `DeepL-Auth-Key ${this.apiKey}`,
+        Authorization: `DeepL-Auth-Key ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         text: texts,
-        source_lang: sourceLang === 'auto' ? undefined : sourceLang.toUpperCase(),
-        target_lang: targetLang.toUpperCase(),
+        source_lang: mapDeepLSourceLanguageCode(sourceLang),
+        target_lang: mapDeepLTargetLanguageCode(targetLang),
         tag_handling: 'off',
       }),
     });
 
     if (!response.ok) {
-      const errorJson: any = await response.json().catch(() => ({}));
-      const errorMsg = errorJson?.message ?? response.statusText;
+      const errorMsg = await readResponseErrorMessage(response, [
+        payload => payload?.message,
+      ]);
+      if (response.status === 429) {
+        throw new TooManyRequestsError(`DeepL rate limit: ${errorMsg}`);
+      }
       throw new Error(`DeepL translation failed (${response.status}): ${errorMsg}`);
     }
 

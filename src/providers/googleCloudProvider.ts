@@ -1,4 +1,6 @@
 import { ITranslationProvider } from './ITranslationProvider';
+import { readResponseErrorMessage, TooManyRequestsError } from './httpError';
+import { mapLanguageCodeForProvider } from './languageCodeMapper';
 
 export class GoogleCloudProvider implements ITranslationProvider {
   readonly id = 'google-cloud';
@@ -14,12 +16,12 @@ export class GoogleCloudProvider implements ITranslationProvider {
 
     const requestBody: any = {
       q: texts,
-      target: targetLang,
+      target: mapLanguageCodeForProvider(this.id, targetLang),
       format: 'text',
     };
 
     if (sourceLang !== 'auto') {
-      requestBody.source = sourceLang;
+      requestBody.source = mapLanguageCodeForProvider(this.id, sourceLang);
     }
 
     const response = await fetch(url, {
@@ -29,8 +31,12 @@ export class GoogleCloudProvider implements ITranslationProvider {
     });
 
     if (!response.ok) {
-      const errorJson: any = await response.json().catch(() => ({}));
-      const errorMsg = errorJson?.error?.message || response.statusText;
+      const errorMsg = await readResponseErrorMessage(response, [
+        payload => payload?.error?.message,
+      ]);
+      if (response.status === 429) {
+        throw new TooManyRequestsError(`Google Cloud rate limit: ${errorMsg}`);
+      }
       throw new Error(`Google Cloud Translation failed: ${errorMsg}`);
     }
 
