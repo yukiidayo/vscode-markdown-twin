@@ -61,8 +61,17 @@ function collectInlineReplacements(
   const replacements: Replacement[] = [];
   let tableRowRange: [number, number] | null = null;
   let inTableCell = false;
+  let headingTag: string | null = null;
 
   for (const token of tokens) {
+    if (token.type === 'heading_open') {
+      headingTag = token.tag;
+      continue;
+    }
+    if (token.type === 'heading_close') {
+      headingTag = null;
+      continue;
+    }
     if (token.type === 'tr_open' && Array.isArray(token.map) && token.map.length >= 2) {
       tableRowRange = [token.map[0], token.map[1]];
       continue;
@@ -102,7 +111,7 @@ function collectInlineReplacements(
 
     rangeCursor.set(rangeKey, hitIndex + token.content.length);
 
-    const replacementText = buildReplacementText(token.content, translation, mode, inTableCell);
+    const replacementText = buildReplacementText(token.content, translation, mode, inTableCell, headingTag);
 
     replacements.push({
       start: hitIndex,
@@ -120,18 +129,23 @@ function buildReplacementText(
   original: string,
   translation: string,
   mode: TranslationViewMode,
-  inTableCell: boolean
+  inTableCell: boolean,
+  headingTag: string | null
 ): string {
   if (inTableCell) {
     const tableSafeTranslation = normalizeTableCellText(translation);
     return mode === 'translation-only'
       ? tableSafeTranslation
-      : `${normalizeTableCellText(original)}<br><em>${tableSafeTranslation}</em>`;
+      : `${tableSafeTranslation}<span class="mt-bilingual-original-cell">${escapeHtml(normalizeTableCellText(original))}</span>`;
+  }
+
+  if (mode === 'bilingual' && headingTag && /^h[1-6]$/.test(headingTag)) {
+    return `${translation}\n\n<${headingTag} class="mt-bilingual-original mt-bilingual-original-heading">${escapeHtml(original)}</${headingTag}>`;
   }
 
   return mode === 'translation-only'
     ? translation
-    : `${original}\n\n*${translation}*`;
+    : `${translation}\n\n<div class="mt-bilingual-original">${formatOriginalBlock(original)}</div>`;
 }
 
 function normalizeTableCellText(text: string): string {
@@ -140,6 +154,20 @@ function normalizeTableCellText(text: string): string {
     .replace(/\|/g, '\\|')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function formatOriginalBlock(text: string): string {
+  return escapeHtml(text)
+    .split(/\r?\n/)
+    .join('<br>');
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function normalizeReplacements(replacements: Replacement[]): Replacement[] {

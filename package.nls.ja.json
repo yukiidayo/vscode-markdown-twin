@@ -7,7 +7,7 @@
   "markdownTwin.batchSize.description": "1バッチで翻訳するブロック数。",
   "markdownTwin.debounceDelay.description": "文書変更後に再翻訳を開始するまでの遅延秒数 (1-10秒)。入力中のAPIリクエストを減らしたい場合に増やしてください。",
   "markdownTwin.commands.toggleTranslation": "Markdown Twin: 翻訳の切り替え",
-  "markdownTwin.commands.toggleBilingual": "Markdown Twin: バイリンガル表示の切り替え",
+  "markdownTwin.commands.toggleBilingual": "Markdown Twin: 原文＋翻訳表示の切り替え",
   "markdownTwin.commands.selectProvider": "Markdown Twin: 翻訳プロバイダーを選択",
   "markdownTwin.commands.setApiKey": "Markdown Twin: APIキーを設定/変更",
   "markdownTwin.commands.copyTranslatedMarkdown": "Markdown Twin: 翻訳済みMarkdownをコピー",
@@ -20,5 +20,5 @@
   "markdownTwin.commands.configureAzureRegion": "Markdown Twin: Azure リージョンを設定",
   "markdownTwin.commands.openSettings": "Markdown Twin: 設定を開く",
   "markdownTwin.defaultMode.translationOnly": "翻訳のみ",
-  "markdownTwin.defaultMode.bilingual": "バイリンガル"
+  "markdownTwin.defaultMode.bilingual": "原文＋翻訳"
 }

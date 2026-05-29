@@ -5,7 +5,7 @@ export const ja: TranslationType = {
   provider: '翻訳プロバイダー',
   targetLanguage: '言語',
   mode: 'モード',
-  bilingual: 'バイリンガル',
+  bilingual: '原文＋翻訳',
   translationOnly: '翻訳のみ',
   back: '戻る',
   setOrChangeApiKey: 'APIキーを設定/変更...',

@@ -61,4 +61,57 @@ describe('buildTranslatedMarkdown', () => {
     expect(html).toContain('<table');
     expect(html).toContain('<td>line one line | two</td>');
   });
+
+  it('renders bilingual paragraphs with translation first and original as a secondary block', () => {
+    const translated = buildTranslatedMarkdown({
+      document: createDocument('Original sentence.'),
+      langCode: 'ko',
+      mode: 'bilingual',
+      md: new MarkdownIt(),
+      getTranslation: content => content === 'Original sentence.' ? 'Translated sentence.' : null,
+    });
+
+    const html = createMarkdownPreviewEngine().render(translated.text);
+
+    expect(translated.text).toBe(
+      'Translated sentence.\n\n<div class="mt-bilingual-original">Original sentence.</div>'
+    );
+    expect(html).toContain('Translated sentence.</p>');
+    expect(html).toContain('<div class="mt-bilingual-original">Original sentence.</div>');
+  });
+
+  it('renders bilingual headings with the same heading level for the original text', () => {
+    const translated = buildTranslatedMarkdown({
+      document: createDocument('## Original heading'),
+      langCode: 'ko',
+      mode: 'bilingual',
+      md: new MarkdownIt(),
+      getTranslation: content => content === 'Original heading' ? 'Translated heading' : null,
+    });
+
+    const html = createMarkdownPreviewEngine().render(translated.text);
+
+    expect(translated.text).toBe(
+      '## Translated heading\n\n<h2 class="mt-bilingual-original mt-bilingual-original-heading">Original heading</h2>'
+    );
+    expect(html).toContain('>Translated heading</h2>');
+    expect(html).toContain('<h2 class="mt-bilingual-original mt-bilingual-original-heading">Original heading</h2>');
+  });
+
+  it('renders bilingual table cells with translation first and original as inline secondary text', () => {
+    const translated = buildTranslatedMarkdown({
+      document: createDocument('| Key | Value |\n|---|---|\n| concept | pending |'),
+      langCode: 'ko',
+      mode: 'bilingual',
+      md: new MarkdownIt(),
+      getTranslation: content => content === 'pending' ? 'translated' : null,
+    });
+
+    const html = createMarkdownPreviewEngine().render(translated.text);
+
+    expect(translated.text).toContain(
+      '| concept | translated<span class="mt-bilingual-original-cell">pending</span> |'
+    );
+    expect(html).toContain('<td>translated<span class="mt-bilingual-original-cell">pending</span></td>');
+  });
 });
