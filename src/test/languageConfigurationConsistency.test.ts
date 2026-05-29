@@ -42,7 +42,7 @@ describe('language configuration consistency', () => {
     for (const command of previewOnlyCommands) {
       const menu = editorTitleMenus.find(item => item.command === command);
       expect(menu?.when).toContain('markdownTwin.previewActive');
-      expect(menu?.when).not.toContain('activeWebviewPanelId');
+      expect(menu?.when).toContain("activeWebviewPanelId == 'markdownTwinPreview'");
     }
   });
 });

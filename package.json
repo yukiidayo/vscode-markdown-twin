@@ -2,7 +2,7 @@
   "name": "vscode-markdown-twin",
   "displayName": "Markdown Twin",
   "description": "Inline bilingual translation for Markdown preview",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "publisher": "yukiidayo",
   "license": "MIT",
   "icon": "icon.png",
@@ -326,13 +326,13 @@
           "group": "navigation@3"
         },
         {
-          "command": "markdownTwin.openTranslatedSource",
-          "when": "markdownTwin.previewActive && !markdownTwin.showingSource",
+          "command": "markdownTwin.openPreviewFromSource",
+          "when": "markdownTwin.previewActive",
           "group": "navigation@4"
         },
         {
-          "command": "markdownTwin.openPreviewFromSource",
-          "when": "markdownTwin.previewActive && markdownTwin.showingSource",
+          "command": "markdownTwin.openTranslatedSource",
+          "when": "markdownTwin.previewActive && !markdownTwin.showingSource",
           "group": "navigation@4"
         }
       ],
