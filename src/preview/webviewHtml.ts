@@ -68,7 +68,10 @@ export function buildPreviewWebviewHtml(args: BuildPreviewWebviewHtmlArgs): stri
 </head>
 <body class="${classAttr}" data-vscode-context='{"webviewSection":"markdownTwinContent","preventDefaultContextMenuItems":true}'>
     <div id="mt-topbar">${previewHeaderTitle}</div>
-    <div id="preview-container" style="display: ${isPreview ? 'block' : 'none'};">${renderedHtml}</div>
+    <div id="preview-container" style="display: ${isPreview ? 'block' : 'none'};">
+        <div id="mt-preview-highlight-error" style="display: ${sourceHighlightError ? 'block' : 'none'};">${sourceHighlightError ?? ''}</div>
+        ${renderedHtml}
+    </div>
     <div id="source-shell" style="display: ${isSource ? 'flex' : 'none'};">
         <div id="mt-source-sticky" class="is-empty">
             <div id="mt-source-sticky-content"></div>

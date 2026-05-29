@@ -34,6 +34,16 @@ export class MarkdownSourceHighlighter {
     return renderedLines.join('\n');
   }
 
+  async getSetupError(): Promise<string | undefined> {
+    try {
+      await this.ensureTextMateReady();
+      return undefined;
+    } catch (err: unknown) {
+      const reason = err instanceof Error ? err.message : String(err);
+      return `Source highlight failed: ${reason}`;
+    }
+  }
+
   private renderTextMateLine(line: string, binaryTokens: Uint32Array, colorMap: string[]): string {
     if (line.length === 0 || binaryTokens.length === 0) {
       return '';

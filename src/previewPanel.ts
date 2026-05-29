@@ -325,6 +325,9 @@ export class PreviewPanel {
         this.translationManager.logError(message, err, false);
       })
       : emptySourceViewModel(sourceTranslated);
+    const sourceHighlightError = shouldRenderSource
+      ? sourceView.sourceHighlightError
+      : await this._sourceHighlighter.getSetupError();
 
     if (!this._isInitialized) {
       const twinCssUri = webview.asWebviewUri(
@@ -342,7 +345,7 @@ export class PreviewPanel {
         sourceLineOrigins: sourceView.sourceLineOrigins,
         sourceLineHeight: sourceView.sourceLineHeight,
         initialScrollLine: this._lastSyncedLine,
-        sourceHighlightError: sourceView.sourceHighlightError,
+        sourceHighlightError,
         markdownCssUri,
         twinCssUri,
         bodyClasses: getMarkdownPreviewBodyClasses(),
@@ -362,7 +365,7 @@ export class PreviewPanel {
         sourceLineOrigins: shouldRenderSource ? sourceView.sourceLineOrigins : undefined,
         sourceLineHeight: shouldRenderSource ? sourceView.sourceLineHeight : undefined,
         scrollLine: this._lastSyncedLine,
-        sourceHighlightError: shouldRenderSource ? sourceView.sourceHighlightError : undefined
+        sourceHighlightError
       });
     }
   }

@@ -44,16 +44,20 @@ export const WEBVIEW_SCRIPT_SOURCE_UI = `
         }
 
         function setSourceHighlightError(message) {
-            const banner = document.getElementById('mt-source-highlight-error');
-            if (!banner) return;
             const text = typeof message === 'string' ? message.trim() : '';
-            if (!text) {
-                banner.style.display = 'none';
-                banner.textContent = '';
-                return;
+            const bannerIds = ['mt-source-highlight-error', 'mt-preview-highlight-error'];
+
+            for (const id of bannerIds) {
+                const banner = document.getElementById(id);
+                if (!banner) continue;
+                if (!text) {
+                    banner.style.display = 'none';
+                    banner.textContent = '';
+                    continue;
+                }
+                banner.style.display = 'block';
+                banner.textContent = text;
             }
-            banner.style.display = 'block';
-            banner.textContent = text;
         }
 
         function getSourceStickyParts() {

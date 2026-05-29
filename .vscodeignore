@@ -11,4 +11,7 @@ dist/test/**
 jest.config.js
 package-lock.json
 node_modules/**
+!node_modules/vscode-oniguruma/
+!node_modules/vscode-oniguruma/release/
+!node_modules/vscode-oniguruma/release/onig.wasm
 *.vsix
