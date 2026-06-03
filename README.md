@@ -4,6 +4,8 @@ Markdown Twin is a Visual Studio Code extension for translating Markdown documen
 
 It is designed for documentation workflows where you want to keep writing in Markdown while checking a translated preview or translated source view.
 
+![Markdown Twin preview demo](media/preview-demo.png)
+
 ## Features
 
 - Translate Markdown documents using your configured translation provider.
@@ -23,6 +25,13 @@ It is designed for documentation workflows where you want to keep writing in Mar
 - Papago
 
 API keys are stored using VS Code SecretStorage.
+
+### Provider Setup Notes
+
+- Google Cloud Translation: configure a Google Cloud Translation API key with `Markdown Twin: Set / Change API Key`.
+- Azure Translator: configure an Azure Translator key and set `markdownTwin.azureRegion` to your resource region, such as `global`, `japaneast`, or `eastus`.
+- DeepL: configure a DeepL API key. Supported language behavior depends on your DeepL plan and endpoint.
+- Papago: configure your Papago credentials. Supported language pairs depend on the provider.
 
 ## Supported Translation Languages
 
@@ -99,6 +108,23 @@ API keys are stored in VS Code SecretStorage and are not written to the workspac
 Translation quality, supported languages, rate limits, and pricing depend on the selected translation provider.
 
 Some providers may support the same language with different API language codes. Markdown Twin normalizes these differences internally.
+
+## Known Limitations
+
+- Translation quality, availability, limits, and pricing are controlled by the selected translation provider.
+- Very large Markdown documents may take longer to translate because Markdown Twin translates content in batches.
+- Markdown Twin preserves code blocks and inline code-like content, but provider responses can still alter surrounding prose.
+- Offline use is limited to already-cached translations from the current VS Code session.
+
+## Release Checks
+
+Before packaging a release, run:
+
+```bash
+npm run release:check
+```
+
+This compiles TypeScript, runs the Jest suite, bundles the extension, and builds a VSIX package.
 
 ## License
 

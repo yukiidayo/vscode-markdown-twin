@@ -40,6 +40,8 @@
     "vscode:prepublish": "npm run bundle",
     "bundle": "node esbuild.js",
     "compile": "tsc -p ./ --noEmit",
+    "package": "vsce package",
+    "release:check": "npm run compile && npm test -- --runInBand && npm run bundle && npm run package",
     "watch": "node esbuild.js --watch",
     "test": "jest"
   },
@@ -317,22 +319,22 @@
         },
         {
           "command": "markdownTwin.copyTranslatedMarkdown",
-          "when": "markdownTwin.previewActive",
+          "when": "markdownTwin.previewActive && activeWebviewPanelId == 'markdownTwinPreview'",
           "group": "navigation@2"
         },
         {
           "command": "markdownTwin.exportTranslatedMarkdown",
-          "when": "markdownTwin.previewActive",
+          "when": "markdownTwin.previewActive && activeWebviewPanelId == 'markdownTwinPreview'",
           "group": "navigation@3"
         },
         {
           "command": "markdownTwin.openPreviewFromSource",
-          "when": "markdownTwin.previewActive",
+          "when": "markdownTwin.previewActive && activeWebviewPanelId == 'markdownTwinPreview'",
           "group": "navigation@4"
         },
         {
           "command": "markdownTwin.openTranslatedSource",
-          "when": "markdownTwin.previewActive && !markdownTwin.showingSource",
+          "when": "markdownTwin.previewActive && activeWebviewPanelId == 'markdownTwinPreview' && !markdownTwin.showingSource",
           "group": "navigation@4"
         }
       ],

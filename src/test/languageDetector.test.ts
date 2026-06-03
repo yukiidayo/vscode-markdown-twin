@@ -30,13 +30,13 @@ describe('Language Detector Tests', () => {
       const parts = splitTranslatableParts(text, 'ja');
 
       expect(parts.length).toBe(3);
-      expect(parts[0]).toEqual({ text: 'こんにちは `', translate: true });
-      expect(parts[1]).toEqual({ text: 'world', translate: false });
-      expect(parts[2]).toEqual({ text: '` です。', translate: true });
+      expect(parts[0]).toEqual({ text: 'こんにちは ', translate: true });
+      expect(parts[1]).toEqual({ text: '`world`', translate: false });
+      expect(parts[2]).toEqual({ text: ' です。', translate: true });
 
       const translatedMap = new Map<number, string>();
-      translatedMap.set(0, 'Hello `');
-      translatedMap.set(1, '`!');
+      translatedMap.set(0, 'Hello ');
+      translatedMap.set(1, '!');
 
       const joined = joinTranslatedParts(parts, translatedMap);
       expect(joined).toBe('Hello `world`!');

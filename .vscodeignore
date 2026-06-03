@@ -1,7 +1,9 @@
 .vscode/**
+.github/**
 .git/**
 .gitignore
 .vscodeignore
+README.ja.md
 .claude/**
 .idea/**
 esbuild.js

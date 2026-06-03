@@ -28,6 +28,7 @@ export const window = {
   createStatusBarItem: jest.fn(() => new MockStatusBarItem()),
   createOutputChannel: jest.fn(() => ({
     appendLine: jest.fn(),
+    show: jest.fn(),
     dispose: jest.fn(),
   })),
   showErrorMessage: jest.fn(),

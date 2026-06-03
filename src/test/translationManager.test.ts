@@ -53,6 +53,7 @@ describe('TranslationManager', () => {
     const manager = new TranslationManager(apiKeyManager as any);
     const document = {
       uri: vscode.Uri.file('/workspace/requirements.md'),
+      languageId: 'markdown',
       getText: () => '原文です。',
     } as any;
 

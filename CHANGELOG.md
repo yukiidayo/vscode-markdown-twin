@@ -2,25 +2,24 @@
 
 All notable changes to Markdown Twin will be documented in this file.
 
-## 0.3.0 - 2026-05-28
+## 1.0.0 - 2026-06-03
+
+Initial release of Markdown Twin.
 
 ### Added
 
-- Added Simplified Chinese and Traditional Chinese as translation languages.
-- Added Simplified Chinese and Traditional Chinese UI localization.
-- Added provider-specific language code mapping for Chinese variants.
-- Added Quick Pick entries and commands for API key and Azure region configuration.
-- Added Azure region prompt after saving an Azure Translator API key.
-- Added consistency tests for language settings, provider mappings, and localization files.
-
-### Changed
-
-- Improved Markdown preview/source rendering compatibility with VS Code behavior.
-- Improved source and preview synchronization behavior.
-- Refactored webview scripts and preview panel internals for maintainability.
-- Normalized SVG assets to UTF-8 without BOM.
+- Translate Markdown documents with Google Cloud Translation, Azure Translator, DeepL, or Papago.
+- Show translated Markdown in a VS Code webview with translation-only and bilingual display modes.
+- Show a translated source view with Markdown-like rendering.
+- Preserve Markdown structure for headings, lists, tables, links, images, code blocks, and front matter.
+- Support multiple Markdown tabs and target-language-specific preview panels.
+- Copy or export translated Markdown from the Twin preview.
+- Configure provider, API key, Azure region, source language, target language, display mode, batch size, and debounce delay.
+- Support translation targets for Japanese, English, Korean, Simplified Chinese, Traditional Chinese, Spanish, French, German, Italian, Portuguese, Russian, Vietnamese, Thai, Indonesian, Arabic, and Hindi.
+- Localize the extension UI in English, Japanese, Korean, Simplified Chinese, and Traditional Chinese.
 
 ### Security
 
-- Documented that API keys are stored using VS Code SecretStorage.
-- Documented that translated content is sent to the selected translation provider.
+- Store API keys using VS Code SecretStorage.
+- Do not collect telemetry.
+- Send translated text only to the translation provider selected by the user.
