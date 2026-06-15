@@ -54,7 +54,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.ja",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.ja%",
         "icon": {
           "light": "./media/flags/ja.svg",
           "dark": "./media/flags/ja.svg"
@@ -62,7 +62,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.en",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.en%",
         "icon": {
           "light": "./media/flags/en.svg",
           "dark": "./media/flags/en.svg"
@@ -70,7 +70,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.ko",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.ko%",
         "icon": {
           "light": "./media/flags/ko.svg",
           "dark": "./media/flags/ko.svg"
@@ -78,7 +78,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.es",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.es%",
         "icon": {
           "light": "./media/flags/es.svg",
           "dark": "./media/flags/es.svg"
@@ -86,7 +86,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.fr",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.fr%",
         "icon": {
           "light": "./media/flags/fr.svg",
           "dark": "./media/flags/fr.svg"
@@ -94,7 +94,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.de",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.de%",
         "icon": {
           "light": "./media/flags/de.svg",
           "dark": "./media/flags/de.svg"
@@ -102,7 +102,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.it",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.it%",
         "icon": {
           "light": "./media/flags/it.svg",
           "dark": "./media/flags/it.svg"
@@ -110,7 +110,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.pt",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.pt%",
         "icon": {
           "light": "./media/flags/pt.svg",
           "dark": "./media/flags/pt.svg"
@@ -118,7 +118,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.ru",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.ru%",
         "icon": {
           "light": "./media/flags/ru.svg",
           "dark": "./media/flags/ru.svg"
@@ -126,7 +126,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.vi",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.vi%",
         "icon": {
           "light": "./media/flags/vi.svg",
           "dark": "./media/flags/vi.svg"
@@ -134,7 +134,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.th",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.th%",
         "icon": {
           "light": "./media/flags/th.svg",
           "dark": "./media/flags/th.svg"
@@ -142,7 +142,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.id",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.id%",
         "icon": {
           "light": "./media/flags/id.svg",
           "dark": "./media/flags/id.svg"
@@ -150,7 +150,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.ar",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.ar%",
         "icon": {
           "light": "./media/flags/ar.svg",
           "dark": "./media/flags/ar.svg"
@@ -158,7 +158,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.hi",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.hi%",
         "icon": {
           "light": "./media/flags/hi.svg",
           "dark": "./media/flags/hi.svg"
@@ -166,7 +166,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.zh-Hans",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.zh-Hans%",
         "icon": {
           "light": "./media/flags/zh-Hans.svg",
           "dark": "./media/flags/zh-Hans.svg"
@@ -174,7 +174,7 @@
       },
       {
         "command": "markdownTwin.toggleTranslation.zh-Hant",
-        "title": "%markdownTwin.commands.toggleTranslation%",
+        "title": "%markdownTwin.commands.translateTo.zh-Hant%",
         "icon": {
           "light": "./media/flags/zh-Hant.svg",
           "dark": "./media/flags/zh-Hant.svg"

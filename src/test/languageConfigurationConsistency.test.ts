@@ -13,7 +13,7 @@ describe('language configuration consistency', () => {
     const sourceEnum: string[] = properties['markdownTwin.sourceLanguage'].enum;
     const targetLabels: string[] = properties['markdownTwin.targetLanguage'].enumItemLabels;
     const sourceLabels: string[] = properties['markdownTwin.sourceLanguage'].enumItemLabels;
-    const commands: Array<{ command: string }> = packageJson.contributes.commands;
+    const commands: Array<{ command: string; title: string }> = packageJson.contributes.commands;
     const editorTitleMenus: Array<{ command: string; when?: string }> = packageJson.contributes.menus['editor/title'];
 
     expect(targetLabels).toHaveLength(targetEnum.length);
@@ -24,7 +24,8 @@ describe('language configuration consistency', () => {
       expect(sourceEnum).toContain(language.code);
       expect(targetLabels).toContain(language.label);
       expect(sourceLabels).toContain(language.label);
-      expect(commands.some(command => command.command === `markdownTwin.toggleTranslation.${language.code}`)).toBe(true);
+      const command = commands.find(command => command.command === `markdownTwin.toggleTranslation.${language.code}`);
+      expect(command?.title).toBe(`%markdownTwin.commands.translateTo.${language.code}%`);
       expect(editorTitleMenus.some(menu => menu.command === `markdownTwin.toggleTranslation.${language.code}`)).toBe(true);
       expect(fs.existsSync(path.join(__dirname, '..', '..', 'media', 'flags', `${language.code}.svg`))).toBe(true);
     }
