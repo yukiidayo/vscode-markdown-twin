@@ -1,6 +1,6 @@
 import { escapeHtml } from '../utils/html';
 import type { TranslatedMarkdownResult } from '../translatedMarkdownBuilder';
-import type { MarkdownSourceHighlighter } from './sourceHighlighter';
+import type { TextMateHighlightService } from './highlighting/textMateHighlightService';
 
 const SOURCE_LINE_HEIGHT = 19;
 
@@ -15,7 +15,7 @@ export interface SourceViewModel {
 
 export async function buildSourceViewModel(
   translated: TranslatedMarkdownResult,
-  sourceHighlighter: MarkdownSourceHighlighter,
+  highlightService: TextMateHighlightService,
   logHighlightError: (message: string, err: unknown) => void
 ): Promise<SourceViewModel> {
   const sourceMarkdown = translated.text;
@@ -23,11 +23,16 @@ export async function buildSourceViewModel(
   let sourceHighlightError: string | undefined;
 
   try {
-    highlightedSource = await sourceHighlighter.highlight(sourceMarkdown);
-  } catch (err: unknown) {
-    const reason = err instanceof Error ? err.message : String(err);
+    const result = await highlightService.highlightLanguage(sourceMarkdown, 'markdown');
+    highlightedSource = result.html;
+    if (result.kind === 'failed') {
+      sourceHighlightError = `Source highlight failed: ${result.error.message}`;
+      logHighlightError(sourceHighlightError, result.error);
+    }
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error);
     sourceHighlightError = `Source highlight failed: ${reason}`;
-    logHighlightError(sourceHighlightError, err);
+    logHighlightError(sourceHighlightError, error);
   }
 
   return {

@@ -1,0 +1,13 @@
+{
+  "include": "./base-theme.json",
+  "tokenColors": [
+    {
+      "scope": "keyword.todo.simple",
+      "settings": {
+        "foreground": "#ffff00",
+        "background": "#333333",
+        "fontStyle": "bold"
+      }
+    }
+  ]
+}

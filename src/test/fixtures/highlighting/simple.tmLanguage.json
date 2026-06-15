@@ -1,0 +1,14 @@
+{
+  "scopeName": "source.simple",
+  "patterns": [
+    {
+      "match": "\\b(const|let)\\b",
+      "name": "keyword.control.simple"
+    },
+    {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.simple"
+    }
+  ]
+}

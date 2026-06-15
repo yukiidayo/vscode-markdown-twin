@@ -4,14 +4,14 @@ import { TranslationManager } from './translationManager';
 import { getTargetLanguageCode } from './languages';
 import { t } from './i18n';
 import { isCursor } from './utils';
-import { createMarkdownPreviewEngine } from './preview/markdownEngine';
 import { createLocalResourceRoots, createWebviewNonce, resolveMarkdownResourceUri } from './preview/webviewResources';
 import { getMarkdownPreviewBodyClasses, getMarkdownPreviewStyleVars, shouldScrollEditorWithPreview, shouldScrollPreviewWithEditor } from './preview/markdownPreviewSettings';
 import { buildPreviewWebviewHtml } from './preview/webviewHtml';
-import { MarkdownSourceHighlighter } from './preview/sourceHighlighter';
 import { buildSourceViewModel, emptySourceViewModel } from './preview/sourceViewModel';
 import { runTranslationForDocument } from './translationRunner';
 import type { TranslatedMarkdownResult } from './translatedMarkdownBuilder';
+import { renderMarkdownPreview } from './preview/markdownPreviewRenderer';
+import type { TextMateHighlightService } from './preview/highlighting/textMateHighlightService';
 
 function normalizeLineNumber(value: unknown): number {
   const line = Number(value);
@@ -22,6 +22,7 @@ export class PreviewPanel {
   public static currentPanel: PreviewPanel | undefined;
   public static readonly allPanels = new Map<string, PreviewPanel>();
   public static readonly viewType = 'markdownTwinPreview';
+  private static highlightService: TextMateHighlightService | undefined;
 
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
@@ -29,10 +30,10 @@ export class PreviewPanel {
   private _editor: vscode.TextEditor;
   private _isInitialized = false;
   private _isDisposed = false;
+  private _renderGeneration = 0;
   private readonly _scriptNonce = createWebviewNonce();
   public readonly langCode: string;
   private _viewMode: 'preview' | 'source' = 'preview';
-  private _sourceHighlighter = new MarkdownSourceHighlighter();
   private _scrollLeader: 'editor' | 'webview' | null = null;
   private _scrollLeaderUntil = 0;
   private _suppressEditorScrollUntil = 0;
@@ -44,6 +45,10 @@ export class PreviewPanel {
 
   public get editorDocument(): vscode.TextDocument {
     return this._editor.document;
+  }
+
+  public static configureHighlightService(highlightService: TextMateHighlightService): void {
+    PreviewPanel.highlightService = highlightService;
   }
 
   public static getActivePanel(): PreviewPanel | undefined {
@@ -147,7 +152,18 @@ export class PreviewPanel {
 
     panel.iconPath = vscode.Uri.joinPath(extensionUri, 'media', 'flags', `${code}.svg`);
 
-    const newPanel = new PreviewPanel(panel, extensionUri, activeEditor, translationManager, code);
+    if (!PreviewPanel.highlightService) {
+      throw new Error('Preview highlighting service has not been configured');
+    }
+
+    const newPanel = new PreviewPanel(
+      panel,
+      extensionUri,
+      activeEditor,
+      translationManager,
+      PreviewPanel.highlightService,
+      code
+    );
     PreviewPanel.currentPanel = newPanel;
     PreviewPanel.allPanels.set(panelKey, newPanel);
     PreviewPanel.syncActiveContexts();
@@ -159,6 +175,7 @@ export class PreviewPanel {
     extensionUri: vscode.Uri,
     editor: vscode.TextEditor,
     private translationManager: TranslationManager,
+    private readonly highlightService: TextMateHighlightService,
     langCode: string
   ) {
     this._panel = panel;
@@ -225,7 +242,15 @@ export class PreviewPanel {
         if (e.affectsConfiguration('markdown.preview') && this._isSameDocAsActive) {
           this._isInitialized = false;
           void this._update();
-        } else if (e.affectsConfiguration('workbench.colorTheme') && this._isSameDocAsActive) {
+        }
+      },
+      null,
+      this._disposables
+    );
+
+    this.highlightService.onDidChange(
+      () => {
+        if (this._isSameDocAsActive) {
           void this._update();
         }
       },
@@ -292,25 +317,24 @@ export class PreviewPanel {
     this._editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
   }
 
-  private createPreviewMarkdownEngine(translated: TranslatedMarkdownResult): ReturnType<typeof createMarkdownPreviewEngine> {
+  private async renderPreviewHtml(translated: TranslatedMarkdownResult): Promise<string> {
     const webview = this._panel.webview;
     const document = this._editor.document;
     const previewConfig = vscode.workspace.getConfiguration('markdown.preview');
-    return createMarkdownPreviewEngine({
+    return renderMarkdownPreview(translated, {
       breaks: previewConfig.get<boolean>('breaks'),
       linkify: previewConfig.get<boolean>('linkify'),
       mapSourceLine: line => translated.lineOrigins[line] ?? line,
       resolveResourceUri: href => resolveMarkdownResourceUri(href, document, webview),
       typographer: previewConfig.get<boolean>('typographer'),
       uriScheme: vscode.env.uriScheme,
+    }, this.highlightService, (message, error) => {
+      this.translationManager.logError(message, error, false);
     });
   }
 
-  private renderPreviewHtml(translated: TranslatedMarkdownResult): string {
-    return this.createPreviewMarkdownEngine(translated).render(translated.text);
-  }
-
   private async _update() {
+    const renderGeneration = ++this._renderGeneration;
     const webview = this._panel.webview;
     const document = this._editor.document;
     const shouldRenderPreview = this._viewMode === 'preview' || !this._isInitialized;
@@ -319,15 +343,20 @@ export class PreviewPanel {
     const sourceTranslated = shouldRenderSource
       ? this.translationManager.generateTranslatedMarkdown(document, this.langCode, 'translation-only')
       : previewTranslated;
-    const renderedHtml = shouldRenderPreview ? this.renderPreviewHtml(previewTranslated) : undefined;
-    const sourceView = shouldRenderSource
-      ? await buildSourceViewModel(sourceTranslated, this._sourceHighlighter, (message, err) => {
+    const [renderedHtml, sourceView] = await Promise.all([
+      shouldRenderPreview ? this.renderPreviewHtml(previewTranslated) : Promise.resolve(undefined),
+      shouldRenderSource
+        ? buildSourceViewModel(sourceTranslated, this.highlightService, (message, err) => {
         this.translationManager.logError(message, err, false);
       })
-      : emptySourceViewModel(sourceTranslated);
-    const sourceHighlightError = shouldRenderSource
-      ? sourceView.sourceHighlightError
-      : await this._sourceHighlighter.getSetupError();
+        : Promise.resolve(emptySourceViewModel(sourceTranslated)),
+    ]);
+
+    if (this._isDisposed || renderGeneration !== this._renderGeneration) {
+      return;
+    }
+
+    const sourceHighlightError = sourceView.sourceHighlightError;
 
     if (!this._isInitialized) {
       const twinCssUri = webview.asWebviewUri(

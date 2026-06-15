@@ -16,6 +16,7 @@ import { isCursor } from './utils';
 import { retranslateActivePreview, retranslatePreviewDocument } from './previewActions';
 import { runTranslationForDocument } from './translationRunner';
 import { promptAzureRegion } from './azureRegion';
+import { TextMateHighlightService } from './preview/highlighting/textMateHighlightService';
 
 let translationManager: TranslationManager;
 
@@ -93,6 +94,11 @@ export async function activate(context: vscode.ExtensionContext) {
   const statusBar = new StatusBar();
   translationManager.setStatusBar(statusBar);
   statusBar.showOffline();
+  context.subscriptions.push(statusBar);
+
+  const highlightService = new TextMateHighlightService();
+  PreviewPanel.configureHighlightService(highlightService);
+  context.subscriptions.push(highlightService);
 
   const providerSelector = new ProviderSelector(apiKeyManager, translationManager, statusBar, context.extensionUri);
   const services: ExtensionServices = { context, apiKeyManager, translationManager, statusBar, providerSelector };
@@ -104,7 +110,6 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommands(services, createToggleTranslationHandler(services));
   registerEditorDocumentListeners(services);
   registerFirstRunApiKeyPrompt(services);
-  context.subscriptions.push(statusBar);
 }
 
 function createToggleTranslationHandler(services: ExtensionServices): ToggleTranslationHandler {

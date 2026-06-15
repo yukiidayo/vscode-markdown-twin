@@ -411,8 +411,7 @@ body.wordWrap pre {
 	white-space: pre-wrap;
 }
 
-pre:not(.hljs),
-pre.hljs code > div {
+pre {
 	padding: 16px;
 	border-radius: 3px;
 	overflow: auto;

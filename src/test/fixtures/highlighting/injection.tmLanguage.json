@@ -1,0 +1,10 @@
+{
+  "scopeName": "comment.todo.injection",
+  "injectionSelector": "L:source.simple",
+  "patterns": [
+    {
+      "match": "\\bTODO\\b",
+      "name": "keyword.todo.simple"
+    }
+  ]
+}

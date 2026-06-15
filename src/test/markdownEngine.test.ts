@@ -32,15 +32,15 @@ describe('createMarkdownPreviewEngine', () => {
     expect(html).not.toContain('data-line="2"');
   });
 
-  it('marks fenced code blocks with the VS Code preview hljs class', () => {
+  it('keeps fenced code blocks escaped until the asynchronous preview renderer highlights them', () => {
     const md = createMarkdownPreviewEngine();
 
-    const html = md.render('```ts\nconst value = 1;\n```');
+    const html = md.render('```ts\nconst value = "<unsafe>";\n```');
 
     expect(html).toContain('<pre><code');
-    expect(html).toContain('class="hljs language-ts"');
-    expect(html).toContain('hljs-keyword');
-    expect(html).toContain('hljs-number');
+    expect(html).toContain('class="language-ts"');
+    expect(html).toContain('&lt;unsafe&gt;');
+    expect(html).not.toContain('hljs');
   });
 
   it('preserves the original link target in data-href', () => {

@@ -1,5 +1,4 @@
 import MarkdownIt from 'markdown-it';
-import hljs from 'highlight.js';
 import { githubSlugifier } from './vscodeSlugify';
 
 type MarkdownToken = {
@@ -18,6 +17,7 @@ type RenderEnv = {
 
 export interface MarkdownPreviewEngineOptions {
   breaks?: boolean;
+  highlightCode?: (code: string, language: string | undefined) => string;
   mapSourceLine?: (line: number) => number;
   linkify?: boolean;
   resolveResourceUri?: (href: string) => string;
@@ -30,7 +30,7 @@ export function createMarkdownPreviewEngine(options: MarkdownPreviewEngineOption
   md = new MarkdownIt({
     html: true,
     breaks: options.breaks,
-    highlight: (str, lang) => highlightCode(str, lang, md),
+    highlight: (str, lang) => options.highlightCode?.(str, lang) ?? md.utils.escapeHtml(str),
     linkify: options.linkify,
     typographer: options.typographer,
   });
@@ -38,48 +38,12 @@ export function createMarkdownPreviewEngine(options: MarkdownPreviewEngineOption
   addFrontmatterRenderer(md);
   addImageRenderer(md, options);
   addNamedHeaders(md);
-  addFencedCodeBlockClass(md);
   addLinkNormalizer(md, options);
   addLinkValidator(md);
   addLinkDataHref(md);
   addSourceMapAttributes(md, options);
 
   return md;
-}
-
-function highlightCode(str: string, lang: string | undefined, md: MarkdownIt): string {
-  const normalizedLang = normalizeHighlightLang(lang);
-  if (normalizedLang && hljs.getLanguage(normalizedLang)) {
-    try {
-      return hljs.highlight(str, {
-        language: normalizedLang,
-        ignoreIllegals: true,
-      }).value;
-    } catch {
-      // Fall through to escaped plain text.
-    }
-  }
-
-  return md.utils.escapeHtml(str);
-}
-
-function normalizeHighlightLang(lang: string | undefined): string | undefined {
-  switch (lang?.toLowerCase()) {
-    case 'shell':
-      return 'sh';
-    case 'py3':
-      return 'python';
-    case 'ts':
-      return 'typescript';
-    case 'js':
-      return 'javascript';
-    case 'c#':
-      return 'csharp';
-    case 'f#':
-      return 'fsharp';
-    default:
-      return lang;
-  }
 }
 
 function addFrontmatterRenderer(md: MarkdownIt): void {
@@ -247,20 +211,6 @@ function tokenToPlainText(token: MarkdownToken | undefined): string {
     default:
       return '';
   }
-}
-
-function addFencedCodeBlockClass(md: MarkdownIt): void {
-  const original = md.renderer.rules.fence;
-
-  md.renderer.rules.fence = (tokens: MarkdownToken[], idx: number, options: unknown, env: unknown, self: any) => {
-    if (tokens[idx].map?.length) {
-      tokens[idx].attrJoin('class', 'hljs');
-    }
-
-    return original
-      ? original(tokens as any, idx, options as any, env, self)
-      : self.renderToken(tokens, idx, options);
-  };
 }
 
 function addLinkDataHref(md: MarkdownIt): void {

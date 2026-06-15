@@ -4,6 +4,7 @@
 .gitignore
 .vscodeignore
 README.ja.md
+SYNTAX_HIGHLIGHTING_PLAN.md
 .claude/**
 .idea/**
 esbuild.js

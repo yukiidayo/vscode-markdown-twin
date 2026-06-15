@@ -1,0 +1,17 @@
+{
+  // JSONC is valid in VS Code color themes.
+  "tokenColors": [
+    {
+      "scope": "keyword.control.simple",
+      "settings": {
+        "foreground": "#ff0000"
+      }
+    },
+    {
+      "scope": "string.quoted.double.simple",
+      "settings": {
+        "foreground": "#00ff00"
+      }
+    },
+  ],
+}
