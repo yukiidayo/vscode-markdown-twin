@@ -195,7 +195,8 @@ export const WEBVIEW_SCRIPT_BOOTSTRAP = `
                 const line = getEditorLineForSourceContainerOffset(sourceContainerEl.scrollTop);
                 if (Number.isFinite(line)) {
                     lastSyncedLine = line;
-                    vscode.postMessage({ command: 'scroll', line, origin: 'webview', mode: 'source' });
+                    const anchorLine = getSourceAnchorLineAtContainerTop(sourceContainerEl.scrollTop);
+                    vscode.postMessage({ command: 'scroll', line, anchorLine, origin: 'webview', mode: 'source' });
                 }
             }, 50);
             sourceContainerEl.addEventListener('scroll', handleSourceScroll, { passive: true });

@@ -18,15 +18,27 @@
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Visualization"
   ],
   "keywords": [
     "markdown",
+    "markdown-preview",
     "translation",
+    "translate",
+    "translator",
     "preview",
     "bilingual",
+    "localization",
+    "l10n",
     "documentation",
-    "localization"
+    "docs",
+    "technical-writing",
+    "readme",
+    "google-translate",
+    "deepl",
+    "azure-translator",
+    "papago"
   ],
   "galleryBanner": {
     "color": "#0f172a",

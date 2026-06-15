@@ -28,5 +28,7 @@ describe('buildPreviewWebviewHtml', () => {
     expect(html).toContain('style="--markdown-font-size: 15px; --markdown-line-height: 1.6;"');
     expect(html).toContain('function interpolateOffsetForLine');
     expect(html).toContain('function getPreviewEditorLineForPageOffset');
+    expect(html).toContain('function getSourceAnchorLineAtContainerTop');
+    expect(html).toContain("anchorLine, origin: 'webview', mode: 'source'");
   });
 });

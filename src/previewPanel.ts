@@ -18,6 +18,11 @@ function normalizeSourcePosition(value: unknown): number {
   return Number.isFinite(line) && line >= 0 ? line : 0;
 }
 
+function normalizeSourceAnchorLine(value: unknown): number | undefined {
+  const line = Number(value);
+  return Number.isFinite(line) && line >= 0 ? Math.floor(line) : undefined;
+}
+
 export class PreviewPanel {
   public static currentPanel: PreviewPanel | undefined;
   public static readonly allPanels = new Map<string, PreviewPanel>();
@@ -218,9 +223,12 @@ export class PreviewPanel {
         if (!shouldScrollEditorWithPreview()) return;
 
         this._lastSyncedLine = normalizeSourcePosition(message.line);
+        const revealLine = message.mode === 'source'
+          ? normalizeSourceAnchorLine(message.anchorLine) ?? this._lastSyncedLine
+          : this._lastSyncedLine;
         this._setScrollLeader('webview');
         this._suppressEditorScrollUntil = Date.now() + 220;
-        this._handleScrollMessage(this._lastSyncedLine);
+        this._handleScrollMessage(revealLine, message.mode === 'source');
       },
       null,
       this._disposables
@@ -309,13 +317,19 @@ export class PreviewPanel {
     return !!editor && editor.document.uri.toString() === this._editor.document.uri.toString();
   }
 
-  private _handleScrollMessage(line: number) {
+  private _handleScrollMessage(line: number, revealLogicalLine = false) {
     const visibleEditor = vscode.window.visibleTextEditors.find(editor => this._isEditorForDocument(editor));
     if (visibleEditor) {
       this._editor = visibleEditor;
     }
-    const range = this._toRevealRange(line);
+    const range = revealLogicalLine ? this._toLogicalLineRevealRange(line) : this._toRevealRange(line);
     this._editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
+  }
+
+  private _toLogicalLineRevealRange(line: number): vscode.Range {
+    const lineCount = this._editor.document.lineCount;
+    const sourceLine = Math.max(0, Math.min(Math.floor(line), lineCount - 1));
+    return new vscode.Range(sourceLine, 0, sourceLine, 0);
   }
 
   private _toRevealRange(line: number): vscode.Range {

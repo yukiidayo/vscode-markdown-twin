@@ -121,6 +121,32 @@ export const WEBVIEW_SCRIPT_NAVIGATION = `
             return interpolateLineForOffset(getSourceLineRegions(), containerOffset);
         }
 
+        function getSourceAnchorLineAtContainerTop(containerOffset) {
+            const offset = Math.max(0, Number(containerOffset) || 0);
+            const gutterRows = Array.from(document.querySelectorAll('#line-numbers .line-number[data-line]'));
+            const codeRows = Array.from(document.querySelectorAll('#source-code .code-line[data-line]'));
+            const rows = gutterRows.length > 0 ? gutterRows : codeRows;
+            let firstVisibleLine = undefined;
+            let anchorLine = undefined;
+
+            for (const row of rows) {
+                if (row.style.display === 'none') continue;
+                const line = parseDataLine(row);
+                if (!Number.isFinite(line)) continue;
+                if (firstVisibleLine === undefined) {
+                    firstVisibleLine = line;
+                }
+                const top = row.offsetTop;
+                if (top <= offset + 1) {
+                    anchorLine = line;
+                    continue;
+                }
+                break;
+            }
+
+            return anchorLine ?? firstVisibleLine;
+        }
+
         function scrollPreviewToSourceLine(line) {
             const nextScrollTop = interpolateOffsetForLine(getPreviewLineRegions(), line);
             isSyncingScroll = true;
