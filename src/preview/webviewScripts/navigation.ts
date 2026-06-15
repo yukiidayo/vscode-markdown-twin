@@ -8,17 +8,22 @@ export const WEBVIEW_SCRIPT_NAVIGATION = `
             return Number.isFinite(line) && line >= 0 ? line : undefined;
         }
 
+        function parseDataSourceIndex(el) {
+            const line = Number(el.getAttribute('data-source-index'));
+            return Number.isFinite(line) && line >= 0 ? line : undefined;
+        }
+
         function isVisibleLineElement(el) {
             if (!el || el.style.display === 'none') return false;
             const rect = el.getBoundingClientRect();
             return rect.width > 0 || rect.height > 0 || el.getClientRects().length > 0;
         }
 
-        function buildLineRegions(elements, getTop) {
+        function buildLineRegions(elements, getTop, getLine) {
             const byLine = new Map();
             for (const el of elements) {
                 if (!isVisibleLineElement(el)) continue;
-                const line = parseDataLine(el);
+                const line = getLine(el);
                 if (!Number.isFinite(line)) continue;
                 const top = getTop(el);
                 const height = Math.max(1, el.getBoundingClientRect().height || el.offsetHeight || 1);
@@ -100,7 +105,8 @@ export const WEBVIEW_SCRIPT_NAVIGATION = `
         function getPreviewLineRegions() {
             return buildLineRegions(
                 Array.from(document.querySelectorAll('#preview-container [data-line]')),
-                el => Math.max(0, el.getBoundingClientRect().top + window.scrollY)
+                el => Math.max(0, el.getBoundingClientRect().top + window.scrollY),
+                parseDataLine
             );
         }
 
@@ -108,8 +114,9 @@ export const WEBVIEW_SCRIPT_NAVIGATION = `
             const sourceContainer = document.getElementById('source-container');
             if (!sourceContainer) return [];
             return buildLineRegions(
-                Array.from(document.querySelectorAll('#source-code .code-line[data-line]')),
-                el => el.offsetTop
+                Array.from(document.querySelectorAll('#source-code .code-line[data-source-index]')),
+                el => el.offsetTop,
+                parseDataSourceIndex
             );
         }
 
@@ -131,7 +138,7 @@ export const WEBVIEW_SCRIPT_NAVIGATION = `
 
             for (const row of rows) {
                 if (row.style.display === 'none') continue;
-                const line = parseDataLine(row);
+                const line = parseDataSourceIndex(row) ?? parseDataLine(row);
                 if (!Number.isFinite(line)) continue;
                 if (firstVisibleLine === undefined) {
                     firstVisibleLine = line;
