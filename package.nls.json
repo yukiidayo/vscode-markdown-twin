@@ -24,7 +24,7 @@
   "markdownTwin.commands.translateTo.zh-Hans": "Markdown Twin: Translate to Simplified Chinese",
   "markdownTwin.commands.translateTo.zh-Hant": "Markdown Twin: Translate to Traditional Chinese",
   "markdownTwin.commands.toggleBilingual": "Markdown Twin: Toggle Bilingual Mode",
-  "markdownTwin.commands.selectProvider": "Markdown Twin: Select Translation Provider",
+  "markdownTwin.commands.selectProvider": "Markdown Twin: Open Menu",
   "markdownTwin.commands.setApiKey": "Markdown Twin: Set / Change API Key",
   "markdownTwin.commands.copyTranslatedMarkdown": "Markdown Twin: Copy Translated Markdown",
   "markdownTwin.commands.copyFromPreviewContext": "Copy",

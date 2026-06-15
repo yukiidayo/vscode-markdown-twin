@@ -54,7 +54,7 @@ export class ProviderSelector {
 
       type TopItem = vscode.QuickPickItem & { action: 'provider' | 'language' | 'mode' };
       const topItems: TopItem[] = [
-        { label: t('targetLanguage'), description: getLanguageLabel(targetLang), action: 'language', iconPath: langFlagUri },
+        { label: t('outputLanguage'), description: getLanguageLabel(targetLang), action: 'language', iconPath: langFlagUri },
         { label: `${modeIcon} ${t('mode')}`, description: modeLabel, action: 'mode' },
         { label: `$(globe) ${t('provider')}`, description: displayProvider, action: 'provider' },
       ];

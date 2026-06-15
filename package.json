@@ -231,6 +231,72 @@
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "markdownTwin.toggleTranslation.ja",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.en",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.ko",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.es",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.fr",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.de",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.it",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.pt",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.ru",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.vi",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.th",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.id",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.ar",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.hi",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.zh-Hans",
+          "when": "false"
+        },
+        {
+          "command": "markdownTwin.toggleTranslation.zh-Hant",
+          "when": "false"
+        }
+      ],
       "editor/title": [
         {
           "command": "markdownTwin.toggleTranslation",

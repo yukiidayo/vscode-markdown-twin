@@ -3,7 +3,7 @@ import { TranslationType } from './type';
 export const ja: TranslationType = {
   selectSetting: '変更する設定を選択してください',
   provider: '翻訳プロバイダー',
-  targetLanguage: '言語',
+  targetLanguage: '出力言語',
   mode: 'モード',
   bilingual: '原文＋翻訳',
   translationOnly: '翻訳のみ',
@@ -47,9 +47,9 @@ export const ja: TranslationType = {
   copiedToClipboard: '翻訳済みMarkdownをクリップボードにコピーしました。',
   exportedSuccessfully: (filename: string) => `${filename} に正常にエクスポートしました`,
 
-  translatingTooltip: (done: number, total: number) => `翻訳中... ${done}/${total} | クリックでプロバイダー変更`,
-  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} | ${provider} | ${target} | クリックでプロバイダー変更`,
-  statusOfflineTooltip: (provider: string) => `Markdown Twin: 待機中 | ${provider} | クリックでプロバイダー変更`,
+  translatingTooltip: (done: number, total: number) => `翻訳中... ${done}/${total} | クリックでメニューを開く`,
+  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} | ${provider} | ${target} | クリックでメニューを開く`,
+  statusOfflineTooltip: (provider: string) => `Markdown Twin: 待機中 | ${provider} | クリックでメニューを開く`,
   statusErrorText: (provider: string) => `Twin: エラー (${provider})`,
-  statusErrorTooltip: '翻訳エラー | 詳細は出力パネルを確認 | クリックでプロバイダー変更',
+  statusErrorTooltip: '翻訳エラー | 詳細は出力パネルを確認 | クリックでメニューを開く',
 };
