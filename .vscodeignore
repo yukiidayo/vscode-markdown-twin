@@ -4,6 +4,7 @@
 .gitignore
 .vscodeignore
 README.ja.md
+markdown-twin.md
 SYNTAX_HIGHLIGHTING_PLAN.md
 .claude/**
 .idea/**

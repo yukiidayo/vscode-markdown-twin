@@ -2,7 +2,7 @@
 
 All notable changes to Markdown Twin will be documented in this file.
 
-## 1.0.0 - 2026-06-03
+## 1.0.0 - 2026-06-13
 
 Initial release of Markdown Twin.
 
@@ -14,7 +14,7 @@ Initial release of Markdown Twin.
 - Preserve Markdown structure for headings, lists, tables, links, images, code blocks, and front matter.
 - Support multiple Markdown tabs and target-language-specific preview panels.
 - Copy or export translated Markdown from the Twin preview.
-- Configure provider, API key, Azure region, source language, target language, display mode, batch size, and debounce delay.
+- Configure provider, API key, Azure region, source language, target language, display mode, batch size, and debounce delay, including from the Markdown Twin Quick Pick menu.
 - Support translation targets for Japanese, English, Korean, Simplified Chinese, Traditional Chinese, Spanish, French, German, Italian, Portuguese, Russian, Vietnamese, Thai, Indonesian, Arabic, and Hindi.
 - Localize the extension UI in English, Japanese, Korean, Simplified Chinese, and Traditional Chinese.
 
