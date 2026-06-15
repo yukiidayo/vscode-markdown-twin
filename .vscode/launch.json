@@ -18,13 +18,13 @@
       "name": "Build",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run build"
+      "command": "npm.cmd run build"
     },
     {
       "name": "Package VSIX",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run package"
+      "command": "npm.cmd run package"
     }
   ]
 }
