@@ -181,6 +181,7 @@ export class PreviewPanel {
     this._panel = panel;
     this._extensionUri = extensionUri;
     this._editor = editor;
+    this._lastSyncedLine = editor.visibleRanges[0]?.start.line ?? 0;
     this.langCode = langCode;
 
     void this._update();

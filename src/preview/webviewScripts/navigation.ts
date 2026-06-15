@@ -121,7 +121,9 @@ export const WEBVIEW_SCRIPT_NAVIGATION = `
             const previewElement = findElementByLine(line);
             if (!previewElement) return;
             isSyncingScroll = true;
-            const nextScrollTop = Math.max(0, previewElement.getBoundingClientRect().top + window.scrollY);
+            const nextScrollTop = Number(line) <= 0
+                ? 0
+                : Math.max(0, previewElement.getBoundingClientRect().top + window.scrollY);
             window.scrollTo({ top: nextScrollTop, behavior: 'auto' });
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(() => { isSyncingScroll = false; }, 150);
