@@ -13,6 +13,18 @@
         "${workspaceFolder}/dist/**/*.js"
       ],
       "preLaunchTask": "${defaultBuildTask}"
+    },
+    {
+      "name": "Build",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run build"
+    },
+    {
+      "name": "Package VSIX",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run package"
     }
   ]
 }

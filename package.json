@@ -50,6 +50,7 @@
   "main": "./dist/extension.js",
   "scripts": {
     "vscode:prepublish": "npm run bundle",
+    "build": "npm run compile && npm run bundle",
     "bundle": "node esbuild.js",
     "compile": "tsc -p ./ --noEmit",
     "package": "vsce package",

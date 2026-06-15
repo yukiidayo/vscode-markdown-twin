@@ -5,6 +5,8 @@
 .vscodeignore
 README.ja.md
 markdown-twin.md
+icon.svg
+markdown-twin-icon.af
 SYNTAX_HIGHLIGHTING_PLAN.md
 .claude/**
 .idea/**
