@@ -47,9 +47,9 @@ export const zhHant: TranslationType = {
   copiedToClipboard: '已將翻譯後的 Markdown 複製到剪貼簿。',
   exportedSuccessfully: (filename: string) => `已成功匯出到 ${filename}`,
 
-  translatingTooltip: (done: number, total: number) => `正在翻譯... ${done}/${total} | 點擊以變更提供者`,
-  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} | ${provider} | ${target} | 點擊以變更提供者`,
-  statusOfflineTooltip: (provider: string) => `Markdown Twin: 就緒 | ${provider} | 點擊以變更提供者`,
+  translatingTooltip: (done: number, total: number) => `正在翻譯... ${done}/${total} | 點擊以開啟選單`,
+  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} | ${provider} | ${target} | 點擊以開啟選單`,
+  statusOfflineTooltip: (provider: string) => `Markdown Twin: 就緒 | ${provider} | 點擊以開啟選單`,
   statusErrorText: (provider: string) => `Twin: 錯誤（${provider}）`,
-  statusErrorTooltip: '翻譯錯誤 | 查看輸出面板取得詳細資訊 | 點擊以變更提供者',
+  statusErrorTooltip: '翻譯錯誤 | 查看輸出面板取得詳細資訊 | 點擊以開啟選單',
 };

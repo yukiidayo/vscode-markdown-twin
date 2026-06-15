@@ -101,16 +101,19 @@ export class ProviderSelector {
     return applied ? selected.id : undefined;
   }
 
-  async showApiKeyPicker(): Promise<string | ProviderId | undefined> {
+  async showApiKeyPicker(options: { showBack?: boolean } = {}): Promise<string | ProviderId | undefined> {
     const config = vscode.workspace.getConfiguration('markdownTwin');
     const currentId = normalizeProviderId(config.get<string>('provider'));
 
     const BACK: vscode.QuickPickItem & { id: string } = { label: `$(arrow-left) ${t('back')}`, id: '__back__' };
     const SEP: vscode.QuickPickItem & { id: string } = { label: '', kind: vscode.QuickPickItemKind.Separator, id: '__sep__' };
     const providerItems = await this._buildProviderItems(currentId);
+    const items: Array<vscode.QuickPickItem & { id: string }> = options.showBack
+      ? [BACK, SEP, ...providerItems]
+      : providerItems;
 
     const selected = await vscode.window.showQuickPick(
-      [BACK, SEP, ...providerItems],
+      items,
       { title: t('apiKey'), placeHolder: t('chooseProvider'), matchOnDescription: true }
     );
     if (!selected) return undefined;
@@ -129,7 +132,6 @@ export class ProviderSelector {
     const BACK: vscode.QuickPickItem & { id: string } = { label: `$(arrow-left) ${t('back')}`, id: '__back__' };
     const SEP1: vscode.QuickPickItem & { id: string } = { label: '', kind: vscode.QuickPickItemKind.Separator, id: '__sep1__' };
     const SEP2: vscode.QuickPickItem & { id: string } = { label: '', kind: vscode.QuickPickItemKind.Separator, id: '__sep2__' };
-    const SEP3: vscode.QuickPickItem & { id: string } = { label: '', kind: vscode.QuickPickItemKind.Separator, id: '__sep3__' };
     const API_KEY: vscode.QuickPickItem & { id: string } = {
       label: `$(key) ${t('setOrChangeApiKey')}`,
       description: t('apiKey'),
@@ -155,7 +157,7 @@ export class ProviderSelector {
     }
 
     const selected = await vscode.window.showQuickPick(
-      [BACK, SEP1, ...providerItems, SEP2, ...settingsItems, SEP3],
+      [BACK, SEP1, ...providerItems, SEP2, ...settingsItems],
       { title: t('provider'), placeHolder: t('chooseProvider'), matchOnDescription: true }
     );
 
@@ -168,7 +170,7 @@ export class ProviderSelector {
     }
 
     if (selected.id === '__apiKey__') {
-      const result = await this.showApiKeyPicker();
+      const result = await this.showApiKeyPicker({ showBack: true });
       return result === undefined ? undefined : '__back__';
     }
 

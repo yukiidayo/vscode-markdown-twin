@@ -24,7 +24,7 @@
   "markdownTwin.commands.translateTo.zh-Hans": "Markdown Twin: 翻译为简体中文",
   "markdownTwin.commands.translateTo.zh-Hant": "Markdown Twin: 翻译为繁体中文",
   "markdownTwin.commands.toggleBilingual": "Markdown Twin: 切换双语模式",
-  "markdownTwin.commands.selectProvider": "Markdown Twin: 选择翻译提供商",
+  "markdownTwin.commands.selectProvider": "Markdown Twin: 打开菜单",
   "markdownTwin.commands.setApiKey": "Markdown Twin: 设置/更改 API 密钥",
   "markdownTwin.commands.copyTranslatedMarkdown": "Markdown Twin: 复制翻译后的 Markdown",
   "markdownTwin.commands.copyFromPreviewContext": "复制",

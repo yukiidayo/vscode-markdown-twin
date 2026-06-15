@@ -81,6 +81,36 @@ describe('ProviderSelector', () => {
     await selector.showMenu();
 
     expect(providerMenuItems.some(item => item.id === '__deleteApiKey__')).toBe(false);
+    expect(providerMenuItems.at(-1)?.id).not.toBe('__sep3__');
+  });
+
+  it('does not show a back action when opening the API key picker directly', async () => {
+    const secrets = createSecrets();
+    const apiKeyManager = new ApiKeyManager(secrets as any);
+    const translationManager = {
+      isActive: jest.fn(() => false),
+    };
+    const statusBar = {
+      setActiveProvider: jest.fn(),
+      showOffline: jest.fn(),
+    };
+    const selector = new ProviderSelector(
+      apiKeyManager,
+      translationManager as any,
+      statusBar as any,
+      vscode.Uri.file('/extension')
+    );
+
+    let apiKeyItems: readonly any[] = [];
+    (vscode.window.showQuickPick as jest.Mock).mockImplementationOnce(async items => {
+      apiKeyItems = items;
+      return undefined;
+    });
+
+    await selector.showApiKeyPicker();
+
+    expect(apiKeyItems.some(item => item.id === '__back__')).toBe(false);
+    expect(apiKeyItems.some(item => item.id === '__sep__')).toBe(false);
   });
 
   it('deletes a saved API key after confirmation', async () => {

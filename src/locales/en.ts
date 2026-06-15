@@ -47,9 +47,9 @@ export const en: TranslationType = {
   copiedToClipboard: 'Translated markdown copied to clipboard!',
   exportedSuccessfully: (filename: string) => `Successfully exported to ${filename}`,
 
-  translatingTooltip: (done: number, total: number) => `Translating... ${done}/${total} | Click to change provider`,
-  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} | ${provider} | ${target} | Click to change provider`,
-  statusOfflineTooltip: (provider: string) => `Markdown Twin: Ready | ${provider} | Click to change provider`,
+  translatingTooltip: (done: number, total: number) => `Translating... ${done}/${total} | Click to open menu`,
+  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} | ${provider} | ${target} | Click to open menu`,
+  statusOfflineTooltip: (provider: string) => `Markdown Twin: Ready | ${provider} | Click to open menu`,
   statusErrorText: (provider: string) => `Twin: Error (${provider})`,
-  statusErrorTooltip: 'Translation error | Check Output panel for details | Click to change provider',
+  statusErrorTooltip: 'Translation error | Check Output panel for details | Click to open menu',
 };

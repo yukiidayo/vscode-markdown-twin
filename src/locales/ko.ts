@@ -47,9 +47,9 @@ export const ko: TranslationType = {
   copiedToClipboard: '번역된 Markdown을 클립보드에 복사했습니다.',
   exportedSuccessfully: (filename: string) => `${filename} 내보내기에 성공했습니다`,
 
-  translatingTooltip: (done: number, total: number) => `번역 중... ${done}/${total} | 클릭하여 제공자 변경`,
-  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} | ${provider} | ${target} | 클릭하여 제공자 변경`,
-  statusOfflineTooltip: (provider: string) => `Markdown Twin: 준비됨 | ${provider} | 클릭하여 제공자 변경`,
+  translatingTooltip: (done: number, total: number) => `번역 중... ${done}/${total} | 클릭하여 메뉴 열기`,
+  statusCompleteTooltip: (mode: string, provider: string, target: string) => `Markdown Twin: ${mode} | ${provider} | ${target} | 클릭하여 메뉴 열기`,
+  statusOfflineTooltip: (provider: string) => `Markdown Twin: 준비됨 | ${provider} | 클릭하여 메뉴 열기`,
   statusErrorText: (provider: string) => `Twin: 오류 (${provider})`,
-  statusErrorTooltip: '번역 오류 | 자세한 내용은 출력 패널 확인 | 클릭하여 제공자 변경',
+  statusErrorTooltip: '번역 오류 | 자세한 내용은 출력 패널 확인 | 클릭하여 메뉴 열기',
 };
