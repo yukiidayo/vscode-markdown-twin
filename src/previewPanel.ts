@@ -13,9 +13,9 @@ import type { TranslatedMarkdownResult } from './translatedMarkdownBuilder';
 import { renderMarkdownPreview } from './preview/markdownPreviewRenderer';
 import type { TextMateHighlightService } from './preview/highlighting/textMateHighlightService';
 
-function normalizeLineNumber(value: unknown): number {
+function normalizeSourcePosition(value: unknown): number {
   const line = Number(value);
-  return Number.isFinite(line) && line >= 0 ? Math.floor(line) : 0;
+  return Number.isFinite(line) && line >= 0 ? line : 0;
 }
 
 export class PreviewPanel {
@@ -217,7 +217,7 @@ export class PreviewPanel {
         if (message.command !== 'scroll') return;
         if (!shouldScrollEditorWithPreview()) return;
 
-        this._lastSyncedLine = normalizeLineNumber(message.line);
+        this._lastSyncedLine = normalizeSourcePosition(message.line);
         this._setScrollLeader('webview');
         this._suppressEditorScrollUntil = Date.now() + 220;
         this._handleScrollMessage(this._lastSyncedLine);
@@ -314,8 +314,20 @@ export class PreviewPanel {
     if (visibleEditor) {
       this._editor = visibleEditor;
     }
-    const range = new vscode.Range(line, 0, line, 0);
+    const range = this._toRevealRange(line);
     this._editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
+  }
+
+  private _toRevealRange(line: number): vscode.Range {
+    const lineCount = this._editor.document.lineCount;
+    const sourceLine = Math.max(0, Math.min(Math.floor(line), lineCount - 1));
+    const lineText = this._editor.document.lineAt(sourceLine).text;
+    const fraction = Math.max(0, Math.min(1, line - sourceLine));
+    const startCharacter = Math.floor(fraction * lineText.length);
+    const endLine = Math.min(sourceLine + 1, lineCount - 1);
+    const endCharacter = endLine === sourceLine ? lineText.length : 0;
+
+    return new vscode.Range(sourceLine, startCharacter, endLine, endCharacter);
   }
 
   private async renderPreviewHtml(translated: TranslatedMarkdownResult): Promise<string> {

@@ -1,44 +1,144 @@
 export const WEBVIEW_SCRIPT_NAVIGATION = `
-        function findElementByLine(line) {
-            const elements = Array.from(document.querySelectorAll('#preview-container [data-line]'));
-            if (elements.length === 0) return null;
-            let closest = null;
-            let closestDiff = Infinity;
-            for (const el of elements) {
-                const elLine = parseInt(el.getAttribute('data-line'), 10);
-                if (elLine === line) return el;
-                const diff = line - elLine;
-                if (diff >= 0 && diff < closestDiff) {
-                    closestDiff = diff;
-                    closest = el;
-                }
-            }
-            return closest || elements[0];
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
         }
 
-        function findSourceLineByOriginalLine(line) {
-            const elements = Array.from(document.querySelectorAll('#source-code .code-line[data-line]'));
-            if (elements.length === 0) return null;
-            let closest = null;
-            let closestDiff = Infinity;
-            let nextClosest = null;
-            let nextClosestDiff = Infinity;
+        function parseDataLine(el) {
+            const line = Number(el.getAttribute('data-line'));
+            return Number.isFinite(line) && line >= 0 ? line : undefined;
+        }
+
+        function isVisibleLineElement(el) {
+            if (!el || el.style.display === 'none') return false;
+            const rect = el.getBoundingClientRect();
+            return rect.width > 0 || rect.height > 0 || el.getClientRects().length > 0;
+        }
+
+        function buildLineRegions(elements, getTop) {
+            const byLine = new Map();
             for (const el of elements) {
-                if (el.style.display === 'none') continue;
-                const elLine = parseInt(el.getAttribute('data-line'), 10);
-                if (!Number.isFinite(elLine)) continue;
-                if (elLine === line) return el;
-                const diff = line - elLine;
-                if (diff >= 0 && diff < closestDiff) {
-                    closestDiff = diff;
-                    closest = el;
-                }
-                if (diff < 0 && Math.abs(diff) < nextClosestDiff) {
-                    nextClosestDiff = Math.abs(diff);
-                    nextClosest = el;
+                if (!isVisibleLineElement(el)) continue;
+                const line = parseDataLine(el);
+                if (!Number.isFinite(line)) continue;
+                const top = getTop(el);
+                const height = Math.max(1, el.getBoundingClientRect().height || el.offsetHeight || 1);
+                const bottom = top + height;
+                const existing = byLine.get(line);
+                if (existing) {
+                    existing.top = Math.min(existing.top, top);
+                    existing.bottom = Math.max(existing.bottom, bottom);
+                    existing.elements.push(el);
+                } else {
+                    byLine.set(line, { line, top, bottom, elements: [el] });
                 }
             }
-            return closest || nextClosest || elements.find(el => el.style.display !== 'none') || null;
+
+            const regions = Array.from(byLine.values()).sort((a, b) => {
+                if (a.line === b.line) return a.top - b.top;
+                return a.line - b.line;
+            });
+            if (regions.length > 0 && regions[0].line > 0) {
+                regions.unshift({ line: 0, top: 0, bottom: 1, elements: [] });
+            }
+            return regions;
+        }
+
+        function findRegionPairForLine(regions, line) {
+            if (regions.length === 0) return { previous: null, next: null };
+            let previous = regions[0];
+            let next = null;
+            for (const region of regions) {
+                if (region.line <= line) {
+                    previous = region;
+                    continue;
+                }
+                next = region;
+                break;
+            }
+            return { previous, next };
+        }
+
+        function interpolateOffsetForLine(regions, line) {
+            const normalizedLine = Number.isFinite(Number(line)) ? Math.max(0, Number(line)) : 0;
+            if (normalizedLine <= 0 || regions.length === 0) return 0;
+
+            const { previous, next } = findRegionPairForLine(regions, normalizedLine);
+            if (!previous) return 0;
+            if (!next || next.line <= previous.line) {
+                return previous.top + clamp(normalizedLine - previous.line, 0, 1) * Math.max(1, previous.bottom - previous.top);
+            }
+
+            const progress = clamp((normalizedLine - previous.line) / (next.line - previous.line), 0, 1);
+            return previous.top + progress * (next.top - previous.top);
+        }
+
+        function interpolateLineForOffset(regions, offset) {
+            if (regions.length === 0) return undefined;
+            const normalizedOffset = Math.max(0, Number(offset) || 0);
+            let previous = regions[0];
+            let next = null;
+
+            for (const region of regions) {
+                if (region.top <= normalizedOffset + 1) {
+                    previous = region;
+                    continue;
+                }
+                next = region;
+                break;
+            }
+
+            if (next && next.line > previous.line && next.top > previous.top) {
+                const progress = clamp((normalizedOffset - previous.top) / (next.top - previous.top), 0, 1);
+                return previous.line + progress * (next.line - previous.line);
+            }
+
+            const height = Math.max(1, previous.bottom - previous.top);
+            const progress = clamp((normalizedOffset - previous.top) / height, 0, 1);
+            return previous.line + progress;
+        }
+
+        function getPreviewLineRegions() {
+            return buildLineRegions(
+                Array.from(document.querySelectorAll('#preview-container [data-line]')),
+                el => Math.max(0, el.getBoundingClientRect().top + window.scrollY)
+            );
+        }
+
+        function getSourceLineRegions() {
+            const sourceContainer = document.getElementById('source-container');
+            if (!sourceContainer) return [];
+            return buildLineRegions(
+                Array.from(document.querySelectorAll('#source-code .code-line[data-line]')),
+                el => el.offsetTop
+            );
+        }
+
+        function getPreviewEditorLineForPageOffset(pageOffset) {
+            return interpolateLineForOffset(getPreviewLineRegions(), pageOffset);
+        }
+
+        function getEditorLineForSourceContainerOffset(containerOffset) {
+            return interpolateLineForOffset(getSourceLineRegions(), containerOffset);
+        }
+
+        function scrollPreviewToSourceLine(line) {
+            const nextScrollTop = interpolateOffsetForLine(getPreviewLineRegions(), line);
+            isSyncingScroll = true;
+            window.scrollTo({ top: Math.max(0, nextScrollTop), behavior: 'auto' });
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => { isSyncingScroll = false; }, 150);
+        }
+
+        function scrollSourceToOriginalLine(line) {
+            const sourceContainer = document.getElementById('source-container');
+            if (!sourceContainer) return;
+            const nextScrollTop = interpolateOffsetForLine(getSourceLineRegions(), line);
+            isSyncingScroll = true;
+            sourceContainer.scrollTop = Math.max(0, nextScrollTop);
+            updateSourceScrollbar();
+            renderSourceStickyHeadings(true);
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => { isSyncingScroll = false; }, 150);
         }
 
         function findSourceLineBySourceIndex(sourceIndex) {
@@ -60,73 +160,17 @@ export const WEBVIEW_SCRIPT_NAVIGATION = `
             return closest || elements.find(el => el.style.display !== 'none') || null;
         }
 
-        function findElementAtViewportTop() {
-            const elements = Array.from(document.querySelectorAll('#preview-container [data-line]'));
-            if (elements.length === 0) return null;
-            const viewportTop = window.scrollY || document.documentElement.scrollTop;
-            let closest = null;
-            let closestDiff = Infinity;
-            for (const el of elements) {
-                const diff = Math.abs(el.offsetTop - viewportTop);
-                if (diff < closestDiff) {
-                    closestDiff = diff;
-                    closest = el;
-                }
-            }
-            return closest;
-        }
-
-        function findSourceLineAtTop() {
-            const sourceContainer = document.getElementById('source-container');
-            if (!sourceContainer) return null;
-            const elements = Array.from(document.querySelectorAll('#source-code .code-line[data-line]'));
-            if (elements.length === 0) return null;
-            const viewportTop = sourceContainer.scrollTop;
-            let firstVisible = null;
-            let candidate = null;
-            for (const el of elements) {
-                if (el.style.display === 'none') continue;
-                if (!firstVisible) {
-                    firstVisible = el;
-                }
-                if (el.offsetTop <= (viewportTop + 1)) {
-                    candidate = el;
-                    continue;
-                }
-                break;
-            }
-            return candidate || firstVisible;
-        }
-
-
-
         function isSourceModeActive() {
             return document.body.classList.contains('mt-source-mode');
         }
 
         function scrollToLine(line) {
             if (isSourceModeActive()) {
-                const sourceContainer = document.getElementById('source-container');
-                const sourceLine = findSourceLineByOriginalLine(line);
-                if (!sourceContainer || !sourceLine) return;
-                isSyncingScroll = true;
-                sourceContainer.scrollTop = sourceLine.offsetTop;
-                updateSourceScrollbar();
-                renderSourceStickyHeadings(true);
-                clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(() => { isSyncingScroll = false; }, 150);
+                scrollSourceToOriginalLine(line);
                 return;
             }
 
-            const previewElement = findElementByLine(line);
-            if (!previewElement) return;
-            isSyncingScroll = true;
-            const nextScrollTop = Number(line) <= 0
-                ? 0
-                : Math.max(0, previewElement.getBoundingClientRect().top + window.scrollY);
-            window.scrollTo({ top: nextScrollTop, behavior: 'auto' });
-            clearTimeout(scrollTimeout);
-            scrollTimeout = setTimeout(() => { isSyncingScroll = false; }, 150);
+            scrollPreviewToSourceLine(line);
         }
 
         function scrollToSourceIndex(sourceIndex) {

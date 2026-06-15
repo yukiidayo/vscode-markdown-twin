@@ -26,7 +26,7 @@ describe('buildPreviewWebviewHtml', () => {
 
     expect(html).toContain('class="vscode-body wordWrap scrollBeyondLastLine showEditorSelection mt-preview-mode"');
     expect(html).toContain('style="--markdown-font-size: 15px; --markdown-line-height: 1.6;"');
-    expect(html).toContain('const nextScrollTop = Number(line) <= 0');
-    expect(html).toContain('? 0');
+    expect(html).toContain('function interpolateOffsetForLine');
+    expect(html).toContain('function getPreviewEditorLineForPageOffset');
   });
 });
